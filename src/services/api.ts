@@ -188,4 +188,6 @@ export const bedRequestsAPI = {
   create: async (requestData: any) => {
     const response = await api.post('/bed-requests', requestData);
     return response.data;
+  }
+}
 export default api;
