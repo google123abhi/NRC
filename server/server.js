@@ -17,6 +17,7 @@ const anganwadiRoutes = require('./routes/anganwadis');
 const surveyRoutes = require('./routes/surveys');
 const treatmentRoutes = require('./routes/treatments');
 const aiRoutes = require('./routes/ai');
+const bedRequestRoutes = require('./routes/bedRequests');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -52,6 +53,7 @@ app.use('/api/anganwadis', anganwadiRoutes);
 app.use('/api/surveys', surveyRoutes);
 app.use('/api/treatments', treatmentRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/bed-requests', bedRequestRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

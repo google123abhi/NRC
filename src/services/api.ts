@@ -148,6 +148,44 @@ export const anganwadisAPI = {
     const response = await api.get('/anganwadis');
     return response.data;
   },
+  
+  create: async (anganwadiData: any) => {
+    const response = await api.post('/anganwadis', anganwadiData);
+    return response.data;
+  },
+  
+  update: async (id: string, updates: any) => {
+    const response = await api.put(`/anganwadis/${id}`, updates);
+    return response.data;
+  },
 };
 
+// Workers API
+export const workersAPI = {
+  getAll: async () => {
+    const response = await api.get('/workers');
+    return response.data;
+  },
+  
+  create: async (workerData: any) => {
+    const response = await api.post('/workers', workerData);
+    return response.data;
+  },
+  
+  update: async (id: string, updates: any) => {
+    const response = await api.put(`/workers/${id}`, updates);
+    return response.data;
+  },
+};
+
+// Bed Requests API
+export const bedRequestsAPI = {
+  getAll: async () => {
+    const response = await api.get('/bed-requests');
+    return response.data;
+  },
+  
+  create: async (requestData: any) => {
+    const response = await api.post('/bed-requests', requestData);
+    return response.data;
 export default api;

@@ -212,11 +212,17 @@ const MedicalReports: React.FC = () => {
 
             {/* Actions */}
             <div className="flex space-x-3 pt-4 border-t">
-              <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+              <button 
+                onClick={() => handleDownload(report)}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
                 <Download className="w-4 h-4" />
                 <span>Download</span>
               </button>
-              <button className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+              <button 
+                onClick={() => handlePrint(report)}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+              >
                 <FileText className="w-4 h-4" />
                 <span>Print</span>
               </button>
@@ -225,6 +231,172 @@ const MedicalReports: React.FC = () => {
         </div>
       </div>
     );
+  };
+
+  const handleDownload = (report: any) => {
+    const patient = patients.find(p => p.id === report.patientId);
+    
+    // Create report content
+    let content = '';
+    if (report.category === 'lab') {
+      content = `
+LAB REPORT
+===========
+
+Patient: ${patient?.name}
+Age: ${patient?.age} years
+Type: ${patient?.type === 'child' ? 'Child' : 'Pregnant Woman'}
+Date: ${new Date(report.date).toLocaleDateString()}
+Hospital: ${report.hospitalId}
+
+TEST TYPE: ${report.type}
+
+RESULTS:
+${report.results}
+
+Generated on: ${new Date().toLocaleString()}
+      `;
+    } else {
+      content = `
+DISCHARGE SUMMARY
+================
+
+Patient: ${patient?.name}
+Age: ${patient?.age} years
+Type: ${patient?.type === 'child' ? 'Child' : 'Pregnant Woman'}
+Discharge Date: ${new Date(report.date).toLocaleDateString()}
+Hospital: ${report.hospitalId}
+
+FINAL WEIGHT: ${report.summary.finalWeight} kg
+NEXT CHECKUP: ${new Date(report.summary.nextCheckupDate).toLocaleDateString()}
+
+HEALTH IMPROVEMENT:
+${report.summary.healthImprovement}
+
+FOLLOW-UP INSTRUCTIONS:
+${report.summary.followUpInstructions.map((instruction: string, index: number) => `${index + 1}. ${instruction}`).join('\n')}
+
+Generated on: ${new Date().toLocaleString()}
+      `;
+    }
+
+    // Create and download file
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${report.category}_report_${patient?.name}_${new Date(report.date).toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handlePrint = (report: any) => {
+    const patient = patients.find(p => p.id === report.patientId);
+    
+    // Create print content
+    let printContent = '';
+    if (report.category === 'lab') {
+      printContent = `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h1 style="text-align: center; color: #2563eb;">LAB REPORT</h1>
+          <hr style="margin: 20px 0;">
+          
+          <div style="margin-bottom: 20px;">
+            <h3>Patient Information</h3>
+            <p><strong>Name:</strong> ${patient?.name}</p>
+            <p><strong>Age:</strong> ${patient?.age} years</p>
+            <p><strong>Type:</strong> ${patient?.type === 'child' ? 'Child' : 'Pregnant Woman'}</p>
+            <p><strong>Date:</strong> ${new Date(report.date).toLocaleDateString()}</p>
+            <p><strong>Hospital:</strong> ${report.hospitalId}</p>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <h3>Test Information</h3>
+            <p><strong>Test Type:</strong> ${report.type}</p>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <h3>Results</h3>
+            <div style="background: #f3f4f6; padding: 15px; border-radius: 5px;">
+              ${report.results.replace(/\n/g, '<br>')}
+            </div>
+          </div>
+          
+          <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #666;">
+            Generated on: ${new Date().toLocaleString()}
+          </div>
+        </div>
+      `;
+    } else {
+      printContent = `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h1 style="text-align: center; color: #16a34a;">DISCHARGE SUMMARY</h1>
+          <hr style="margin: 20px 0;">
+          
+          <div style="margin-bottom: 20px;">
+            <h3>Patient Information</h3>
+            <p><strong>Name:</strong> ${patient?.name}</p>
+            <p><strong>Age:</strong> ${patient?.age} years</p>
+            <p><strong>Type:</strong> ${patient?.type === 'child' ? 'Child' : 'Pregnant Woman'}</p>
+            <p><strong>Discharge Date:</strong> ${new Date(report.date).toLocaleDateString()}</p>
+            <p><strong>Hospital:</strong> ${report.hospitalId}</p>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <h3>Discharge Details</h3>
+            <p><strong>Final Weight:</strong> ${report.summary.finalWeight} kg</p>
+            <p><strong>Next Checkup:</strong> ${new Date(report.summary.nextCheckupDate).toLocaleDateString()}</p>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <h3>Health Improvement</h3>
+            <div style="background: #f0fdf4; padding: 15px; border-radius: 5px;">
+              ${report.summary.healthImprovement}
+            </div>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <h3>Follow-up Instructions</h3>
+            <ol style="background: #eff6ff; padding: 15px; border-radius: 5px;">
+              ${report.summary.followUpInstructions.map((instruction: string) => `<li>${instruction}</li>`).join('')}
+            </ol>
+          </div>
+          
+          <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #666;">
+            Generated on: ${new Date().toLocaleString()}
+          </div>
+        </div>
+      `;
+    }
+
+    // Open print window
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Medical Report - ${patient?.name}</title>
+            <style>
+              @media print {
+                body { margin: 0; }
+                .no-print { display: none; }
+              }
+            </style>
+          </head>
+          <body>
+            ${printContent}
+            <div class="no-print" style="text-align: center; margin-top: 20px;">
+              <button onclick="window.print()" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer;">Print</button>
+              <button onclick="window.close()" style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">Close</button>
+            </div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
   };
 
   return (
@@ -365,8 +537,17 @@ const MedicalReports: React.FC = () => {
                       >
                         {t('common.view')}
                       </button>
-                      <button className="text-green-600 hover:text-green-800 text-sm font-medium">
+                      <button 
+                        onClick={() => handleDownload(report)}
+                        className="text-green-600 hover:text-green-800 text-sm font-medium"
+                      >
                         Download
+                      </button>
+                      <button 
+                        onClick={() => handlePrint(report)}
+                        className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+                      >
+                        Print
                       </button>
                     </div>
                   </div>

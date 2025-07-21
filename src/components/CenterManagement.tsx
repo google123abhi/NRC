@@ -3,7 +3,7 @@ import { MapPin, Plus, Users, Phone, Calendar, Building, CheckCircle, XCircle, E
 import { useApp, Anganwadi } from '../context/AppContext';
 
 const CenterManagement: React.FC = () => {
-  const { anganwadis, workers, t } = useApp();
+  const { anganwadis, workers, addAnganwadi, t } = useApp();
   const [selectedAnganwadi, setSelectedAnganwadi] = useState<Anganwadi | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -153,6 +153,305 @@ const CenterManagement: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  const AddAnganwadiForm = () => {
+    const [formData, setFormData] = useState({
+      name: '',
+      code: '',
+      locationArea: '',
+      locationDistrict: '',
+      locationState: '',
+      locationPincode: '',
+      latitude: '',
+      longitude: '',
+      supervisorName: '',
+      supervisorContact: '',
+      supervisorEmployeeId: '',
+      capacityPregnantWomen: '',
+      capacityChildren: '',
+      facilities: '',
+      coverageAreas: '',
+      establishedDate: '',
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      const newAnganwadi: Omit<Anganwadi, 'id'> = {
+        name: formData.name,
+        code: formData.code,
+        location: {
+          area: formData.locationArea,
+          district: formData.locationDistrict,
+          state: formData.locationState,
+          pincode: formData.locationPincode,
+          coordinates: {
+            latitude: parseFloat(formData.latitude) || 0,
+            longitude: parseFloat(formData.longitude) || 0,
+          },
+        },
+        supervisor: {
+          name: formData.supervisorName,
+          contactNumber: formData.supervisorContact,
+          employeeId: formData.supervisorEmployeeId,
+        },
+        capacity: {
+          pregnantWomen: parseInt(formData.capacityPregnantWomen) || 0,
+          children: parseInt(formData.capacityChildren) || 0,
+        },
+        facilities: formData.facilities.split(',').map(f => f.trim()).filter(f => f),
+        coverageAreas: formData.coverageAreas.split(',').map(a => a.trim()).filter(a => a),
+        establishedDate: formData.establishedDate,
+        isActive: true,
+      };
+
+      addAnganwadi(newAnganwadi);
+      setShowAddForm(false);
+      setFormData({
+        name: '',
+        code: '',
+        locationArea: '',
+        locationDistrict: '',
+        locationState: '',
+        locationPincode: '',
+        latitude: '',
+        longitude: '',
+        supervisorName: '',
+        supervisorContact: '',
+        supervisorEmployeeId: '',
+        capacityPregnantWomen: '',
+        capacityChildren: '',
+        facilities: '',
+        coverageAreas: '',
+        establishedDate: '',
+      });
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Add New Anganwadi Center</h3>
+          </div>
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* Basic Information */}
+            <div>
+              <h4 className="text-md font-medium text-gray-900 mb-4">Basic Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Center Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Center Code *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.code}
+                    onChange={(e) => setFormData({...formData, code: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="AWC001"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Established Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.establishedDate}
+                    onChange={(e) => setFormData({...formData, establishedDate: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Location Information */}
+            <div>
+              <h4 className="text-md font-medium text-gray-900 mb-4">Location Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Area *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.locationArea}
+                    onChange={(e) => setFormData({...formData, locationArea: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">District *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.locationDistrict}
+                    onChange={(e) => setFormData({...formData, locationDistrict: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">State *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.locationState}
+                    onChange={(e) => setFormData({...formData, locationState: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
+                  <input
+                    type="text"
+                    value={formData.locationPincode}
+                    onChange={(e) => setFormData({...formData, locationPincode: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    value={formData.latitude}
+                    onChange={(e) => setFormData({...formData, latitude: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    value={formData.longitude}
+                    onChange={(e) => setFormData({...formData, longitude: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Supervisor Information */}
+            <div>
+              <h4 className="text-md font-medium text-gray-900 mb-4">Supervisor Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.supervisorName}
+                    onChange={(e) => setFormData({...formData, supervisorName: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={formData.supervisorContact}
+                    onChange={(e) => setFormData({...formData, supervisorContact: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.supervisorEmployeeId}
+                    onChange={(e) => setFormData({...formData, supervisorEmployeeId: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Capacity Information */}
+            <div>
+              <h4 className="text-md font-medium text-gray-900 mb-4">Capacity Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pregnant Women Capacity *</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={formData.capacityPregnantWomen}
+                    onChange={(e) => setFormData({...formData, capacityPregnantWomen: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Children Capacity *</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={formData.capacityChildren}
+                    onChange={(e) => setFormData({...formData, capacityChildren: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Facilities and Coverage */}
+            <div>
+              <h4 className="text-md font-medium text-gray-900 mb-4">Facilities and Coverage</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Facilities (comma separated)</label>
+                  <textarea
+                    value={formData.facilities}
+                    onChange={(e) => setFormData({...formData, facilities: e.target.value})}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Kitchen, Playground, Medical Room, Toilet"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Coverage Areas (comma separated) *</label>
+                  <textarea
+                    required
+                    value={formData.coverageAreas}
+                    onChange={(e) => setFormData({...formData, coverageAreas: e.target.value})}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Area 1, Area 2, Area 3"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Add Anganwadi Center
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     );
@@ -336,6 +635,7 @@ const CenterManagement: React.FC = () => {
 
       {/* Modal */}
       {selectedAnganwadi && <AnganwadiDetailsModal anganwadi={selectedAnganwadi} />}
+      {showAddForm && <AddAnganwadiForm />}
     </div>
   );
 };

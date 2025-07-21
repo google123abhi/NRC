@@ -3,7 +3,7 @@ import { Users, Plus, Phone, MapPin, Calendar, Clock, User, Eye, Edit, CheckCirc
 import { useApp, Worker } from '../context/AppContext';
 
 const WorkerManagement: React.FC = () => {
-  const { workers, anganwadis, t } = useApp();
+  const { workers, anganwadis, addWorker, t } = useApp();
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [filterRole, setFilterRole] = useState<'all' | 'head' | 'supervisor' | 'helper' | 'asha'>('all');
@@ -161,6 +161,269 @@ const WorkerManagement: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  const AddWorkerForm = () => {
+    const [formData, setFormData] = useState({
+      employeeId: '',
+      name: '',
+      role: 'helper' as 'head' | 'supervisor' | 'helper' | 'asha',
+      anganwadiId: '',
+      contactNumber: '',
+      address: '',
+      assignedAreas: '',
+      qualifications: '',
+      workingHoursStart: '09:00',
+      workingHoursEnd: '17:00',
+      emergencyContactName: '',
+      emergencyContactRelation: '',
+      emergencyContactNumber: '',
+      joinDate: new Date().toISOString().split('T')[0],
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      const newWorker: Omit<Worker, 'id'> = {
+        employeeId: formData.employeeId,
+        name: formData.name,
+        role: formData.role,
+        anganwadiId: formData.anganwadiId || undefined,
+        contactNumber: formData.contactNumber,
+        address: formData.address || undefined,
+        assignedAreas: formData.assignedAreas.split(',').map(a => a.trim()).filter(a => a),
+        qualifications: formData.qualifications.split(',').map(q => q.trim()).filter(q => q),
+        workingHours: {
+          start: formData.workingHoursStart,
+          end: formData.workingHoursEnd,
+        },
+        emergencyContact: {
+          name: formData.emergencyContactName,
+          relation: formData.emergencyContactRelation,
+          contactNumber: formData.emergencyContactNumber,
+        },
+        joinDate: formData.joinDate,
+        isActive: true,
+      };
+
+      addWorker(newWorker);
+      setShowAddForm(false);
+      setFormData({
+        employeeId: '',
+        name: '',
+        role: 'helper',
+        anganwadiId: '',
+        contactNumber: '',
+        address: '',
+        assignedAreas: '',
+        qualifications: '',
+        workingHoursStart: '09:00',
+        workingHoursEnd: '17:00',
+        emergencyContactName: '',
+        emergencyContactRelation: '',
+        emergencyContactNumber: '',
+        joinDate: new Date().toISOString().split('T')[0],
+      });
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Add New Worker</h3>
+          </div>
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* Basic Information */}
+            <div>
+              <h4 className="text-md font-medium text-gray-900 mb-4">Basic Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.employeeId}
+                    onChange={(e) => setFormData({...formData, employeeId: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="EMP001"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({...formData, role: e.target.value as any})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="helper">Helper</option>
+                    <option value="head">Head</option>
+                    <option value="supervisor">Supervisor</option>
+                    <option value="asha">ASHA Worker</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Anganwadi Assignment</label>
+                  <select
+                    value={formData.anganwadiId}
+                    onChange={(e) => setFormData({...formData, anganwadiId: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">No Assignment</option>
+                    {anganwadis.map(anganwadi => (
+                      <option key={anganwadi.id} value={anganwadi.id}>
+                        {anganwadi.name} - {anganwadi.location.area}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={formData.contactNumber}
+                    onChange={(e) => setFormData({...formData, contactNumber: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Join Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.joinDate}
+                    onChange={(e) => setFormData({...formData, joinDate: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <textarea
+                  value={formData.address}
+                  onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Work Information */}
+            <div>
+              <h4 className="text-md font-medium text-gray-900 mb-4">Work Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Working Hours Start *</label>
+                  <input
+                    type="time"
+                    required
+                    value={formData.workingHoursStart}
+                    onChange={(e) => setFormData({...formData, workingHoursStart: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Working Hours End *</label>
+                  <input
+                    type="time"
+                    required
+                    value={formData.workingHoursEnd}
+                    onChange={(e) => setFormData({...formData, workingHoursEnd: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Areas (comma separated)</label>
+                  <textarea
+                    value={formData.assignedAreas}
+                    onChange={(e) => setFormData({...formData, assignedAreas: e.target.value})}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Area 1, Area 2, Area 3"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Qualifications (comma separated)</label>
+                  <textarea
+                    value={formData.qualifications}
+                    onChange={(e) => setFormData({...formData, qualifications: e.target.value})}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="ANM Certification, Child Care Training"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency Contact */}
+            <div>
+              <h4 className="text-md font-medium text-gray-900 mb-4">Emergency Contact</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.emergencyContactName}
+                    onChange={(e) => setFormData({...formData, emergencyContactName: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Relation *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.emergencyContactRelation}
+                    onChange={(e) => setFormData({...formData, emergencyContactRelation: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Husband, Mother, Father, etc."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={formData.emergencyContactNumber}
+                    onChange={(e) => setFormData({...formData, emergencyContactNumber: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Add Worker
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     );
@@ -373,6 +636,7 @@ const WorkerManagement: React.FC = () => {
 
       {/* Modal */}
       {selectedWorker && <WorkerDetailsModal worker={selectedWorker} />}
+      {showAddForm && <AddWorkerForm />}
     </div>
   );
 };
