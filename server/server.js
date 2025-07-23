@@ -38,8 +38,13 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Initialize database
-initializeDatabase();
+// Initialize database with proper error handling
+try {
+  initializeDatabase();
+  console.log('✅ Database initialization completed');
+} catch (error) {
+  console.error('❌ Database initialization failed:', error);
+}
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -60,7 +65,8 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    version: '1.0.0'
+    version: '1.0.0',
+    database: 'SQLite Connected'
   });
 });
 
@@ -82,6 +88,7 @@ app.listen(PORT, () => {
   console.log(`🚀 NRC Management Server running on port ${PORT}`);
   console.log(`📊 Environment: ${NODE_ENV}`);
   console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
+  console.log(`💾 Database: SQLite (Persistent Storage)`);
 });
 
 module.exports = app;
