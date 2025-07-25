@@ -798,7 +798,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // API Helper function
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}${endpoint}`, {
         headers: {
           'Content-Type': 'application/json',
           ...options.headers,
