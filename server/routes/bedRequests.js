@@ -42,10 +42,22 @@ router.post('/', [
     return res.status(400).json({ errors: errors.array() });
   }
 
+  console.log('Received bed request data on server:', req.body);
+
   const requestData = {
     id: uuidv4(),
-    ...req.body
+    patient_id: req.body.patientId,
+    requested_by: req.body.requestedBy,
+    request_date: req.body.requestDate || new Date().toISOString().split('T')[0],
+    urgency_level: req.body.urgencyLevel,
+    medical_justification: req.body.medicalJustification,
+    current_condition: req.body.currentCondition,
+    estimated_stay_duration: req.body.estimatedStayDuration,
+    special_requirements: req.body.specialRequirements,
+    status: req.body.status || 'pending'
   };
+
+  console.log('Processed bed request data for database:', requestData);
 
   const query = `
     INSERT INTO bed_requests (
@@ -57,19 +69,23 @@ router.post('/', [
 
   const values = [
     requestData.id, requestData.patient_id, requestData.requested_by,
-    requestData.request_date || new Date().toISOString().split('T')[0],
+    requestData.request_date,
     requestData.urgency_level, requestData.medical_justification,
     requestData.current_condition, requestData.estimated_stay_duration,
-    requestData.special_requirements, requestData.status || 'pending'
+    requestData.special_requirements, requestData.status
   ];
 
+  console.log('Executing database query with values:', values);
   db.run(query, values, function(err) {
     if (err) {
+      console.error('Database error:', err);
       return res.status(500).json({ error: err.message });
     }
+    console.log('Bed request saved to database successfully');
     res.status(201).json({ 
       message: 'Bed request created successfully', 
-      id: requestData.id 
+      id: requestData.id,
+      bedRequest: requestData
     });
   });
 });

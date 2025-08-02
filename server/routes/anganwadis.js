@@ -34,9 +34,9 @@ router.get('/', async (req, res) => {
 router.post('/', [
   body('name').notEmpty().withMessage('Name is required'),
   body('code').notEmpty().withMessage('Code is required'),
-  body('location_area').notEmpty().withMessage('Location area is required'),
-  body('location_district').notEmpty().withMessage('Location district is required'),
-  body('location_state').notEmpty().withMessage('Location state is required')
+  body('location.area').notEmpty().withMessage('Location area is required'),
+  body('location.district').notEmpty().withMessage('Location district is required'),
+  body('location.state').notEmpty().withMessage('Location state is required')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -44,12 +44,29 @@ router.post('/', [
   }
 
   try {
+    console.log('Received anganwadi data on server:', req.body);
+    
     const anganwadiData = {
       id: uuidv4(),
-      ...req.body,
+      name: req.body.name,
+      code: req.body.code,
+      location_area: req.body.location.area,
+      location_district: req.body.location.district,
+      location_state: req.body.location.state,
+      location_pincode: req.body.location.pincode,
+      latitude: req.body.location.coordinates?.latitude,
+      longitude: req.body.location.coordinates?.longitude,
+      supervisor_name: req.body.supervisor.name,
+      supervisor_contact: req.body.supervisor.contactNumber,
+      supervisor_employee_id: req.body.supervisor.employeeId,
+      capacity_pregnant_women: req.body.capacity.pregnantWomen,
+      capacity_children: req.body.capacity.children,
       facilities: JSON.stringify(req.body.facilities || []),
-      coverage_areas: JSON.stringify(req.body.coverage_areas || [])
+      coverage_areas: JSON.stringify(req.body.coverageAreas || []),
+      established_date: req.body.establishedDate
     };
+
+    console.log('Processed anganwadi data for database:', anganwadiData);
 
     const query = `
       INSERT INTO anganwadi_centers (
@@ -69,11 +86,14 @@ router.post('/', [
       anganwadiData.facilities, anganwadiData.coverage_areas, anganwadiData.established_date
     ];
 
+    console.log('Executing database query with values:', values);
     await runQuery(query, values);
+    console.log('Anganwadi saved to database successfully');
     
     res.status(201).json({ 
       message: 'Anganwadi center created successfully', 
-      id: anganwadiData.id 
+      id: anganwadiData.id,
+      anganwadi: anganwadiData
     });
   } catch (err) {
     console.error('Error creating anganwadi:', err);

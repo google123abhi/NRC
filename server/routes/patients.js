@@ -85,16 +85,35 @@ router.post('/', [
   }
 
   try {
+    console.log('Received patient data on server:', req.body);
+    
     const patientData = {
       id: uuidv4(),
       registration_number: `NRC${Date.now()}`,
-      ...req.body,
+      aadhaar_number: req.body.aadhaarNumber,
+      name: req.body.name,
+      age: req.body.age,
+      type: req.body.type,
+      pregnancy_week: req.body.pregnancyWeek,
+      contact_number: req.body.contactNumber,
+      emergency_contact: req.body.emergencyContact || req.body.contactNumber,
+      address: req.body.address,
+      weight: req.body.weight,
+      height: req.body.height,
+      blood_pressure: req.body.bloodPressure,
+      temperature: req.body.temperature,
+      hemoglobin: req.body.hemoglobin,
+      nutrition_status: req.body.nutritionStatus,
       medical_history: JSON.stringify(req.body.medical_history || []),
       symptoms: JSON.stringify(req.body.symptoms || []),
       documents: JSON.stringify(req.body.documents || []),
       photos: JSON.stringify(req.body.photos || []),
+      remarks: req.body.remarks,
+      risk_score: req.body.riskScore || 0,
       nutritional_deficiency: JSON.stringify(req.body.nutritional_deficiency || [])
     };
+
+    console.log('Processed patient data for database:', patientData);
 
     const query = `
       INSERT INTO patients (
@@ -118,10 +137,12 @@ router.post('/', [
       patientData.registration_date || new Date().toISOString().split('T')[0]
     ];
 
+    console.log('Executing database query with values:', values);
     await runQuery(query, values);
+    console.log('Patient saved to database successfully');
 
     // Create notification for high-risk patients
-    if (patientData.risk_score > 80 || patientData.nutrition_status === 'severely_malnourished') {
+    if ((patientData.risk_score && patientData.risk_score > 80) || patientData.nutrition_status === 'severely_malnourished') {
       const notificationQuery = `
         INSERT INTO notifications (id, user_role, type, title, message, priority, action_required)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -136,11 +157,13 @@ router.post('/', [
         'high',
         1
       ]);
+      console.log('High-risk notification created');
     }
 
     res.status(201).json({ 
       message: 'Patient created successfully', 
-      id: patientData.id 
+      id: patientData.id,
+      patient: patientData
     });
   } catch (err) {
     console.error('Error creating patient:', err);

@@ -24,7 +24,9 @@ router.get('/', async (req, res) => {
 
 // Update bed status
 router.put('/:id', async (req, res) => {
-  const { status, patient_id, admission_date } = req.body;
+  console.log('Received bed update data on server:', req.body);
+  
+  const { status, patientId, admissionDate } = req.body;
   
   try {
     // Begin transaction
@@ -37,7 +39,8 @@ router.put('/:id', async (req, res) => {
       WHERE id = ?
     `;
     
-    const result = await runQuery(updateBedQuery, [status, patient_id, admission_date, req.params.id]);
+    console.log('Updating bed with values:', [status, patientId, admissionDate, req.params.id]);
+    const result = await runQuery(updateBedQuery, [status, patientId, admissionDate, req.params.id]);
     
     if (result.changes === 0) {
       await runQuery('ROLLBACK');
@@ -45,14 +48,15 @@ router.put('/:id', async (req, res) => {
     }
     
     // Update patient's bed assignment if assigning
-    if (patient_id) {
+    if (patientId) {
       const updatePatientQuery = `
         UPDATE patients 
         SET bed_id = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `;
       
-      await runQuery(updatePatientQuery, [req.params.id, patient_id]);
+      console.log('Updating patient bed assignment:', [req.params.id, patientId]);
+      await runQuery(updatePatientQuery, [req.params.id, patientId]);
     } else if (status === 'available') {
       // Clear patient's bed assignment if freeing bed
       const clearPatientBedQuery = `
@@ -61,10 +65,12 @@ router.put('/:id', async (req, res) => {
         WHERE bed_id = ?
       `;
       
+      console.log('Clearing patient bed assignment for bed:', req.params.id);
       await runQuery(clearPatientBedQuery, [req.params.id]);
     }
     
     await runQuery('COMMIT');
+    console.log('Bed updated successfully in database');
     res.json({ message: 'Bed updated successfully' });
   } catch (err) {
     await runQuery('ROLLBACK');

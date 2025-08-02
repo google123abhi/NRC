@@ -45,12 +45,27 @@ router.post('/', [
   }
 
   try {
+    console.log('Received worker data on server:', req.body);
+    
     const workerData = {
       id: uuidv4(),
-      ...req.body,
-      assigned_areas: JSON.stringify(req.body.assigned_areas || []),
-      qualifications: JSON.stringify(req.body.qualifications || [])
+      employee_id: req.body.employeeId,
+      name: req.body.name,
+      role: req.body.role,
+      anganwadi_id: req.body.anganwadiId,
+      contact_number: req.body.contactNumber,
+      address: req.body.address,
+      assigned_areas: JSON.stringify(req.body.assignedAreas || []),
+      qualifications: JSON.stringify(req.body.qualifications || []),
+      working_hours_start: req.body.workingHours?.start,
+      working_hours_end: req.body.workingHours?.end,
+      emergency_contact_name: req.body.emergencyContact?.name,
+      emergency_contact_relation: req.body.emergencyContact?.relation,
+      emergency_contact_number: req.body.emergencyContact?.contactNumber,
+      join_date: req.body.joinDate
     };
+
+    console.log('Processed worker data for database:', workerData);
 
     const query = `
       INSERT INTO workers (
@@ -69,11 +84,14 @@ router.post('/', [
       workerData.emergency_contact_number, workerData.join_date
     ];
 
+    console.log('Executing database query with values:', values);
     await runQuery(query, values);
+    console.log('Worker saved to database successfully');
     
     res.status(201).json({ 
       message: 'Worker created successfully', 
-      id: workerData.id 
+      id: workerData.id,
+      worker: workerData
     });
   } catch (err) {
     console.error('Error creating worker:', err);
