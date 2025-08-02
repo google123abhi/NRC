@@ -341,23 +341,23 @@ interface AppContextType {
   language: 'en' | 'hi';
   
   // Actions
-  addPatient: (patient: Omit<Patient, 'id'>) => void;
-  updatePatient: (id: string, updates: Partial<Patient>) => void;
-  addMedicalRecord: (record: Omit<MedicalRecord, 'id'>) => void;
+  addPatient: (patient: Omit<Patient, 'id'>) => Promise<void>;
+  updatePatient: (id: string, updates: Partial<Patient>) => Promise<void>;
+  addMedicalRecord: (record: Omit<MedicalRecord, 'id'>) => Promise<void>;
   getPatientMedicalHistory: (patientId: string) => MedicalRecord[];
-  updateBed: (id: string, updates: Partial<Bed>) => void;
-  addBedRequest: (request: Omit<BedRequest, 'id'>) => void;
-  updateBedRequest: (id: string, updates: Partial<BedRequest>) => void;
-  addVisit: (visit: Omit<Visit, 'id'>) => void;
-  updateVisit: (id: string, updates: Partial<Visit>) => void;
-  markNotificationRead: (id: string) => void;
-  addNotification: (notification: Omit<Notification, 'id'>) => void;
+  updateBed: (id: string, updates: Partial<Bed>) => Promise<void>;
+  addBedRequest: (request: Omit<BedRequest, 'id'>) => Promise<void>;
+  updateBedRequest: (id: string, updates: Partial<BedRequest>) => Promise<void>;
+  addVisit: (visit: Omit<Visit, 'id'>) => Promise<void>;
+  updateVisit: (id: string, updates: Partial<Visit>) => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  addNotification: (notification: Omit<Notification, 'id'>) => Promise<void>;
   addTreatmentTracker: (tracker: Omit<TreatmentTracker, 'id'>) => void;
   updateTreatmentTracker: (id: string, updates: Partial<TreatmentTracker>) => void;
-  addAnganwadi: (anganwadi: Omit<Anganwadi, 'id'>) => void;
-  updateAnganwadi: (id: string, updates: Partial<Anganwadi>) => void;
-  addWorker: (worker: Omit<Worker, 'id'>) => void;
-  updateWorker: (id: string, updates: Partial<Worker>) => void;
+  addAnganwadi: (anganwadi: Omit<Anganwadi, 'id'>) => Promise<void>;
+  updateAnganwadi: (id: string, updates: Partial<Anganwadi>) => Promise<void>;
+  addWorker: (worker: Omit<Worker, 'id'>) => Promise<void>;
+  updateWorker: (id: string, updates: Partial<Worker>) => Promise<void>;
   addSurvey: (survey: Omit<SurveyReport, 'id'>) => void;
   addMissedVisitTicket: (ticket: Omit<MissedVisitTicket, 'id'>) => void;
   updateMissedVisitTicket: (id: string, updates: Partial<MissedVisitTicket>) => void;
@@ -550,238 +550,19 @@ const translations = {
   }
 };
 
-// Mock data
-const mockPatients: Patient[] = [
-  {
-    id: '1',
-    registrationNumber: 'NRC001',
-    aadhaarNumber: '1234-5678-9012',
-    name: 'Aarav Kumar',
-    age: 3,
-    type: 'child',
-    contactNumber: '+91 9876543210',
-    address: 'Sadar Bazaar, Meerut, UP',
-    weight: 8.5,
-    height: 85,
-    bloodPressure: '90/60',
-    temperature: 98.6,
-    hemoglobin: 8.2,
-    nutritionStatus: 'severely_malnourished',
-    medicalHistory: ['Anemia', 'Frequent infections'],
-    symptoms: ['Weakness', 'Loss of appetite', 'Frequent crying'],
-    documents: ['Aadhaar Card', 'Birth Certificate'],
-    photos: ['patient_photo.jpg'],
-    remarks: 'Requires immediate attention and therapeutic feeding',
-    riskScore: 85,
-    nutritionalDeficiency: ['Protein', 'Iron', 'Vitamin D'],
-    registeredBy: 'EMP001',
-    registrationDate: '2024-01-15',
-    admissionDate: '2024-01-15',
-    nextVisit: '2024-01-22'
-  },
-  {
-    id: '2',
-    registrationNumber: 'NRC002',
-    aadhaarNumber: '2345-6789-0123',
-    name: 'Priya Devi',
-    age: 24,
-    type: 'pregnant',
-    pregnancyWeek: 28,
-    contactNumber: '+91 9876543211',
-    address: 'Civil Lines, Meerut, UP',
-    weight: 45,
-    height: 155,
-    bloodPressure: '110/70',
-    temperature: 98.4,
-    hemoglobin: 9.1,
-    nutritionStatus: 'malnourished',
-    medicalHistory: ['Anemia'],
-    symptoms: ['Fatigue', 'Dizziness'],
-    documents: ['Aadhaar Card', 'Pregnancy Card'],
-    photos: ['patient_photo2.jpg'],
-    remarks: 'Regular monitoring required',
-    riskScore: 65,
-    nutritionalDeficiency: ['Iron', 'Folic Acid'],
-    registeredBy: 'EMP001',
-    registrationDate: '2024-01-16',
-    admissionDate: '2024-01-16',
-    nextVisit: '2024-01-23'
-  }
-];
-
-const mockAnganwadis: Anganwadi[] = [
-  {
-    id: 'awc-001',
-    name: 'Anganwadi Center Sadar',
-    code: 'AWC001',
-    location: {
-      area: 'Sadar Bazaar',
-      district: 'Meerut',
-      state: 'Uttar Pradesh',
-      pincode: '250001',
-      coordinates: {
-        latitude: 28.9845,
-        longitude: 77.7064
-      }
-    },
-    supervisor: {
-      name: 'Sunita Devi',
-      contactNumber: '+91 9876543210',
-      employeeId: 'SUP001'
-    },
-    capacity: {
-      pregnantWomen: 25,
-      children: 50
-    },
-    facilities: ['Kitchen', 'Playground', 'Medical Room', 'Toilet'],
-    coverageAreas: ['Sadar Bazaar', 'Civil Lines', 'Shastri Nagar'],
-    establishedDate: '2020-01-15',
-    isActive: true
-  },
-  {
-    id: 'awc-002',
-    name: 'Anganwadi Center Cantonment',
-    code: 'AWC002',
-    location: {
-      area: 'Cantonment Area',
-      district: 'Meerut',
-      state: 'Uttar Pradesh',
-      pincode: '250004',
-      coordinates: {
-        latitude: 28.9845,
-        longitude: 77.7064
-      }
-    },
-    supervisor: {
-      name: 'Rajesh Kumar',
-      contactNumber: '+91 9876543211',
-      employeeId: 'SUP002'
-    },
-    capacity: {
-      pregnantWomen: 20,
-      children: 40
-    },
-    facilities: ['Kitchen', 'Medical Room', 'Toilet'],
-    coverageAreas: ['Cantonment', 'Mall Road'],
-    establishedDate: '2019-03-20',
-    isActive: true
-  }
-];
-
-const mockWorkers: Worker[] = [
-  {
-    id: 'worker-001',
-    employeeId: 'EMP001',
-    name: 'Priya Sharma',
-    role: 'head',
-    anganwadiId: 'awc-001',
-    contactNumber: '+91 9876543210',
-    address: 'Sadar Bazaar, Meerut',
-    assignedAreas: ['Sadar Bazaar', 'Civil Lines'],
-    qualifications: ['ANM Certification', 'Child Care Training'],
-    workingHours: {
-      start: '09:00',
-      end: '17:00'
-    },
-    emergencyContact: {
-      name: 'Raj Sharma',
-      relation: 'Husband',
-      contactNumber: '+91 9876543220'
-    },
-    joinDate: '2020-02-01',
-    isActive: true
-  },
-  {
-    id: 'worker-002',
-    employeeId: 'EMP002',
-    name: 'Meera Devi',
-    role: 'helper',
-    anganwadiId: 'awc-001',
-    contactNumber: '+91 9876543211',
-    address: 'Shastri Nagar, Meerut',
-    assignedAreas: ['Shastri Nagar'],
-    qualifications: ['Basic Health Training'],
-    workingHours: {
-      start: '09:00',
-      end: '17:00'
-    },
-    emergencyContact: {
-      name: 'Ram Devi',
-      relation: 'Mother',
-      contactNumber: '+91 9876543221'
-    },
-    joinDate: '2020-03-15',
-    isActive: true
-  },
-  {
-    id: 'worker-003',
-    employeeId: 'EMP003',
-    name: 'Kavita Singh',
-    role: 'asha',
-    anganwadiId: 'awc-002',
-    contactNumber: '+91 9876543212',
-    address: 'Cantonment, Meerut',
-    assignedAreas: ['Cantonment', 'Mall Road'],
-    qualifications: ['ASHA Training', 'Community Health'],
-    workingHours: {
-      start: '08:00',
-      end: '16:00'
-    },
-    emergencyContact: {
-      name: 'Suresh Singh',
-      relation: 'Husband',
-      contactNumber: '+91 9876543222'
-    },
-    joinDate: '2019-06-10',
-    isActive: true
-  }
-];
-
-const mockBeds: Bed[] = [
-  { id: 'bed-001', hospitalId: 'hosp-001', number: 'B001', ward: 'Pediatric', status: 'available' },
-  { id: 'bed-002', hospitalId: 'hosp-001', number: 'B002', ward: 'Pediatric', status: 'available' },
-  { id: 'bed-003', hospitalId: 'hosp-001', number: 'M001', ward: 'Maternity', status: 'available' },
-  { id: 'bed-004', hospitalId: 'hosp-001', number: 'M002', ward: 'Maternity', status: 'occupied', patientId: '2', admissionDate: '2024-01-16' }
-];
-
-const mockNotifications: Notification[] = [
-  {
-    id: 'notif-001',
-    userRole: 'supervisor',
-    type: 'high_risk_alert',
-    title: 'High Risk Patient Alert',
-    message: 'New severely malnourished child Aarav Kumar registered with risk score 85%',
-    priority: 'high',
-    actionRequired: true,
-    read: false,
-    date: '2024-01-15'
-  },
-  {
-    id: 'notif-002',
-    userRole: 'hospital',
-    type: 'bed_request',
-    title: 'New Bed Request',
-    message: 'Bed request for Priya Devi - Maternity ward required',
-    priority: 'medium',
-    actionRequired: true,
-    read: false,
-    date: '2024-01-16'
-  }
-];
-
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // State
-  const [patients, setPatients] = useState<Patient[]>(mockPatients);
+  // State - All data comes from server, no local storage
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
-  const [beds, setBeds] = useState<Bed[]>(mockBeds);
+  const [beds, setBeds] = useState<Bed[]>([]);
   const [bedRequests, setBedRequests] = useState<BedRequest[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [treatmentTrackers, setTreatmentTrackers] = useState<TreatmentTracker[]>([]);
-  const [anganwadis, setAnganwadis] = useState<Anganwadi[]>(mockAnganwadis);
-  const [workers, setWorkers] = useState<Worker[]>(mockWorkers);
+  const [anganwadis, setAnganwadis] = useState<Anganwadi[]>([]);
+  const [workers, setWorkers] = useState<Worker[]>([]);
   const [surveys, setSurveys] = useState<SurveyReport[]>([]);
   const [missedVisitTickets, setMissedVisitTickets] = useState<MissedVisitTicket[]>([]);
   const [visitTickets, setVisitTickets] = useState<AnganwadiVisitTicket[]>([]);
@@ -792,13 +573,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [userRole, setUserRole] = useState<'anganwadi_worker' | 'supervisor' | 'hospital' | null>(null);
   const [language, setLanguage] = useState<'en' | 'hi'>('en');
 
-  // API Base URL
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  // API Base URL - Fixed to use correct environment variable
+  const API_BASE_URL = 'http://localhost:3001/api';
 
-  // API Helper function
+  // API Helper function - Sends data to Node server, which handles database
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         headers: {
           'Content-Type': 'application/json',
           ...options.headers,
@@ -813,106 +594,138 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return await response.json();
     } catch (error) {
       console.error(`API Error for ${endpoint}:`, error);
-      // Return mock data or handle gracefully
-      return null;
+      throw error; // Re-throw to handle in calling function
     }
   };
 
-  // Load data from API on mount
+  // Load data from server on mount and when user role changes
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load patients
+        console.log('Loading data from server...');
+        
+        // Load patients from server
         const patientsData = await apiCall('/patients');
-        if (patientsData) setPatients(patientsData);
+        if (patientsData) {
+          setPatients(patientsData);
+          console.log('Patients loaded:', patientsData.length);
+        }
 
-        // Load beds
+        // Load beds from server
         const bedsData = await apiCall('/beds');
-        if (bedsData) setBeds(bedsData);
+        if (bedsData) {
+          setBeds(bedsData);
+          console.log('Beds loaded:', bedsData.length);
+        }
 
-        // Load anganwadis
+        // Load anganwadis from server
         const anganwadisData = await apiCall('/anganwadis');
-        if (anganwadisData) setAnganwadis(anganwadisData);
+        if (anganwadisData) {
+          setAnganwadis(anganwadisData);
+          console.log('Anganwadis loaded:', anganwadisData.length);
+        }
 
-        // Load workers
+        // Load workers from server
         const workersData = await apiCall('/workers');
-        if (workersData) setWorkers(workersData);
+        if (workersData) {
+          setWorkers(workersData);
+          console.log('Workers loaded:', workersData.length);
+        }
+
+        // Load bed requests from server
+        const bedRequestsData = await apiCall('/bed-requests');
+        if (bedRequestsData) {
+          setBedRequests(bedRequestsData);
+          console.log('Bed requests loaded:', bedRequestsData.length);
+        }
 
         // Load notifications for current user role
         if (userRole) {
           const notificationsData = await apiCall(`/notifications/role/${userRole}`);
-          if (notificationsData) setNotifications(notificationsData);
+          if (notificationsData) {
+            setNotifications(notificationsData);
+            console.log('Notifications loaded:', notificationsData.length);
+          }
         }
+
+        // Load visits from server
+        const visitsData = await apiCall('/visits');
+        if (visitsData) {
+          setVisits(visitsData);
+          console.log('Visits loaded:', visitsData.length);
+        }
+
+        console.log('All data loaded successfully from server');
       } catch (error) {
-        console.error('Failed to load data from API:', error);
+        console.error('Failed to load data from server:', error);
+        // Don't use fallback data - force user to fix connection
       }
     };
 
     loadData();
   }, [userRole]);
 
-  // Actions
+  // Actions - All data operations go through Node server to database
   const addPatient = async (patient: Omit<Patient, 'id'>) => {
     try {
-      const newPatient = await apiCall('/patients', {
+      console.log('Sending patient data to server:', patient);
+      const response = await apiCall('/patients', {
         method: 'POST',
         body: JSON.stringify(patient),
       });
 
-      if (newPatient) {
-        setPatients(prev => [...prev, newPatient]);
-      } else {
-        // Fallback to local state
-        const id = Date.now().toString();
-        setPatients(prev => [...prev, { ...patient, id }]);
+      if (response) {
+        console.log('Patient created successfully:', response);
+        // Reload patients from server to get updated data
+        const updatedPatients = await apiCall('/patients');
+        setPatients(updatedPatients);
       }
     } catch (error) {
       console.error('Failed to add patient:', error);
-      // Fallback to local state
-      const id = Date.now().toString();
-      setPatients(prev => [...prev, { ...patient, id }]);
+      throw error;
     }
   };
 
   const updatePatient = async (id: string, updates: Partial<Patient>) => {
     try {
-      const updatedPatient = await apiCall(`/patients/${id}`, {
+      console.log('Updating patient on server:', id, updates);
+      const response = await apiCall(`/patients/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
 
-      if (updatedPatient) {
-        setPatients(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-      } else {
-        // Fallback to local state
-        setPatients(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+      if (response) {
+        console.log('Patient updated successfully:', response);
+        // Reload patients from server
+        const updatedPatients = await apiCall('/patients');
+        setPatients(updatedPatients);
       }
     } catch (error) {
       console.error('Failed to update patient:', error);
-      // Fallback to local state
-      setPatients(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+      throw error;
     }
   };
 
   const addMedicalRecord = async (record: Omit<MedicalRecord, 'id'>) => {
     try {
-      const newRecord = await apiCall('/medical-records', {
+      console.log('Sending medical record to server:', record);
+      const response = await apiCall('/medical-records', {
         method: 'POST',
         body: JSON.stringify(record),
       });
 
-      if (newRecord) {
-        setMedicalRecords(prev => [...prev, newRecord]);
-      } else {
-        // Fallback to local state
-        const id = Date.now().toString();
-        setMedicalRecords(prev => [...prev, { ...record, id }]);
+      if (response) {
+        console.log('Medical record created successfully:', response);
+        // Reload medical records from server
+        const updatedRecords = await apiCall(`/medical-records/patient/${record.patientId}`);
+        setMedicalRecords(prev => [
+          ...prev.filter(r => r.patientId !== record.patientId),
+          ...updatedRecords
+        ]);
       }
     } catch (error) {
       console.error('Failed to add medical record:', error);
-      // Fallback to local state
-      const id = Date.now().toString();
-      setMedicalRecords(prev => [...prev, { ...record, id }]);
+      throw error;
     }
   };
 
@@ -922,140 +735,141 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateBed = async (id: string, updates: Partial<Bed>) => {
     try {
-      const updatedBed = await apiCall(`/beds/${id}`, {
+      console.log('Updating bed on server:', id, updates);
+      const response = await apiCall(`/beds/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
 
-      if (updatedBed) {
-        setBeds(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
-      } else {
-        // Fallback to local state
-        setBeds(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
+      if (response) {
+        console.log('Bed updated successfully:', response);
+        // Reload beds from server
+        const updatedBeds = await apiCall('/beds');
+        setBeds(updatedBeds);
       }
     } catch (error) {
       console.error('Failed to update bed:', error);
-      // Fallback to local state
-      setBeds(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
+      throw error;
     }
   };
 
   const addBedRequest = async (request: Omit<BedRequest, 'id'>) => {
     try {
-      const newRequest = await apiCall('/bed-requests', {
+      console.log('Sending bed request to server:', request);
+      const response = await apiCall('/bed-requests', {
         method: 'POST',
         body: JSON.stringify(request),
       });
 
-      if (newRequest) {
-        setBedRequests(prev => [...prev, newRequest]);
-      } else {
-        // Fallback to local state
-        const id = Date.now().toString();
-        setBedRequests(prev => [...prev, { ...request, id }]);
+      if (response) {
+        console.log('Bed request created successfully:', response);
+        // Reload bed requests from server
+        const updatedRequests = await apiCall('/bed-requests');
+        setBedRequests(updatedRequests);
       }
     } catch (error) {
       console.error('Failed to add bed request:', error);
-      // Fallback to local state
-      const id = Date.now().toString();
-      setBedRequests(prev => [...prev, { ...request, id }]);
+      throw error;
     }
   };
 
   const updateBedRequest = async (id: string, updates: Partial<BedRequest>) => {
     try {
-      const updatedRequest = await apiCall(`/bed-requests/${id}`, {
+      console.log('Updating bed request on server:', id, updates);
+      const response = await apiCall(`/bed-requests/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
 
-      if (updatedRequest) {
-        setBedRequests(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
-      } else {
-        // Fallback to local state
-        setBedRequests(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+      if (response) {
+        console.log('Bed request updated successfully:', response);
+        // Reload bed requests from server
+        const updatedRequests = await apiCall('/bed-requests');
+        setBedRequests(updatedRequests);
       }
     } catch (error) {
       console.error('Failed to update bed request:', error);
-      // Fallback to local state
-      setBedRequests(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+      throw error;
     }
   };
 
   const addVisit = async (visit: Omit<Visit, 'id'>) => {
     try {
-      const newVisit = await apiCall('/visits', {
+      console.log('Sending visit to server:', visit);
+      const response = await apiCall('/visits', {
         method: 'POST',
         body: JSON.stringify(visit),
       });
 
-      if (newVisit) {
-        setVisits(prev => [...prev, newVisit]);
-      } else {
-        // Fallback to local state
-        const id = Date.now().toString();
-        setVisits(prev => [...prev, { ...visit, id }]);
+      if (response) {
+        console.log('Visit created successfully:', response);
+        // Reload visits from server
+        const updatedVisits = await apiCall('/visits');
+        setVisits(updatedVisits);
       }
     } catch (error) {
       console.error('Failed to add visit:', error);
-      // Fallback to local state
-      const id = Date.now().toString();
-      setVisits(prev => [...prev, { ...visit, id }]);
+      throw error;
     }
   };
 
   const updateVisit = async (id: string, updates: Partial<Visit>) => {
     try {
-      const updatedVisit = await apiCall(`/visits/${id}`, {
+      console.log('Updating visit on server:', id, updates);
+      const response = await apiCall(`/visits/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
 
-      if (updatedVisit) {
-        setVisits(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
-      } else {
-        // Fallback to local state
-        setVisits(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
+      if (response) {
+        console.log('Visit updated successfully:', response);
+        // Reload visits from server
+        const updatedVisits = await apiCall('/visits');
+        setVisits(updatedVisits);
       }
     } catch (error) {
       console.error('Failed to update visit:', error);
-      // Fallback to local state
-      setVisits(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
+      throw error;
     }
   };
 
   const markNotificationRead = async (id: string) => {
     try {
-      await apiCall(`/notifications/${id}/read`, {
+      console.log('Marking notification as read on server:', id);
+      const response = await apiCall(`/notifications/${id}/read`, {
         method: 'PUT',
       });
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+
+      if (response) {
+        console.log('Notification marked as read:', response);
+        // Update local state immediately for better UX
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      }
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
-      // Fallback to local state
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      throw error;
     }
   };
 
   const addNotification = async (notification: Omit<Notification, 'id'>) => {
     try {
-      const newNotification = await apiCall('/notifications', {
+      console.log('Sending notification to server:', notification);
+      const response = await apiCall('/notifications', {
         method: 'POST',
         body: JSON.stringify(notification),
       });
 
-      if (newNotification) {
-        setNotifications(prev => [...prev, newNotification]);
-      } else {
-        // Fallback to local state
-        const id = Date.now().toString();
-        setNotifications(prev => [...prev, { ...notification, id }]);
+      if (response) {
+        console.log('Notification created successfully:', response);
+        // Reload notifications from server
+        if (userRole) {
+          const updatedNotifications = await apiCall(`/notifications/role/${userRole}`);
+          setNotifications(updatedNotifications);
+        }
       }
     } catch (error) {
       console.error('Failed to add notification:', error);
-      // Fallback to local state
-      const id = Date.now().toString();
-      setNotifications(prev => [...prev, { ...notification, id }]);
+      throw error;
     }
   };
 
@@ -1070,85 +884,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addAnganwadi = async (anganwadi: Omit<Anganwadi, 'id'>) => {
     try {
-      const newAnganwadi = await apiCall('/anganwadis', {
+      console.log('Sending anganwadi to server:', anganwadi);
+      const response = await apiCall('/anganwadis', {
         method: 'POST',
         body: JSON.stringify(anganwadi),
       });
 
-      if (newAnganwadi) {
-        setAnganwadis(prev => [...prev, newAnganwadi]);
-      } else {
-        // Fallback to local state
-        const id = Date.now().toString();
-        setAnganwadis(prev => [...prev, { ...anganwadi, id }]);
+      if (response) {
+        console.log('Anganwadi created successfully:', response);
+        // Reload anganwadis from server
+        const updatedAnganwadis = await apiCall('/anganwadis');
+        setAnganwadis(updatedAnganwadis);
       }
     } catch (error) {
       console.error('Failed to add anganwadi:', error);
-      // Fallback to local state
-      const id = Date.now().toString();
-      setAnganwadis(prev => [...prev, { ...anganwadi, id }]);
+      throw error;
     }
   };
 
   const updateAnganwadi = async (id: string, updates: Partial<Anganwadi>) => {
     try {
-      const updatedAnganwadi = await apiCall(`/anganwadis/${id}`, {
+      console.log('Updating anganwadi on server:', id, updates);
+      const response = await apiCall(`/anganwadis/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
 
-      if (updatedAnganwadi) {
-        setAnganwadis(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
-      } else {
-        // Fallback to local state
-        setAnganwadis(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+      if (response) {
+        console.log('Anganwadi updated successfully:', response);
+        // Reload anganwadis from server
+        const updatedAnganwadis = await apiCall('/anganwadis');
+        setAnganwadis(updatedAnganwadis);
       }
     } catch (error) {
       console.error('Failed to update anganwadi:', error);
-      // Fallback to local state
-      setAnganwadis(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+      throw error;
     }
   };
 
   const addWorker = async (worker: Omit<Worker, 'id'>) => {
     try {
-      const newWorker = await apiCall('/workers', {
+      console.log('Sending worker to server:', worker);
+      const response = await apiCall('/workers', {
         method: 'POST',
         body: JSON.stringify(worker),
       });
 
-      if (newWorker) {
-        setWorkers(prev => [...prev, newWorker]);
-      } else {
-        // Fallback to local state
-        const id = Date.now().toString();
-        setWorkers(prev => [...prev, { ...worker, id }]);
+      if (response) {
+        console.log('Worker created successfully:', response);
+        // Reload workers from server
+        const updatedWorkers = await apiCall('/workers');
+        setWorkers(updatedWorkers);
       }
     } catch (error) {
       console.error('Failed to add worker:', error);
-      // Fallback to local state
-      const id = Date.now().toString();
-      setWorkers(prev => [...prev, { ...worker, id }]);
+      throw error;
     }
   };
 
   const updateWorker = async (id: string, updates: Partial<Worker>) => {
     try {
-      const updatedWorker = await apiCall(`/workers/${id}`, {
+      console.log('Updating worker on server:', id, updates);
+      const response = await apiCall(`/workers/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
 
-      if (updatedWorker) {
-        setWorkers(prev => prev.map(w => w.id === id ? { ...w, ...updates } : w));
-      } else {
-        // Fallback to local state
-        setWorkers(prev => prev.map(w => w.id === id ? { ...w, ...updates } : w));
+      if (response) {
+        console.log('Worker updated successfully:', response);
+        // Reload workers from server
+        const updatedWorkers = await apiCall('/workers');
+        setWorkers(updatedWorkers);
       }
     } catch (error) {
       console.error('Failed to update worker:', error);
-      // Fallback to local state
-      setWorkers(prev => prev.map(w => w.id === id ? { ...w, ...updates } : w));
+      throw error;
     }
   };
 
