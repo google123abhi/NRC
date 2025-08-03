@@ -8,6 +8,7 @@ const router = express.Router();
 // Get all anganwadi centers
 router.get('/', async (req, res) => {
   try {
+    console.log('📊 Fetching all anganwadi centers from database...');
     const query = `
       SELECT * FROM anganwadi_centers 
       WHERE is_active = 1
@@ -16,16 +17,40 @@ router.get('/', async (req, res) => {
     
     const rows = await getAllRows(query);
     
-    // Parse JSON fields
+    // Parse JSON fields and transform to frontend format
     const anganwadis = rows.map(row => ({
-      ...row,
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      location: {
+        area: row.location_area,
+        district: row.location_district,
+        state: row.location_state,
+        pincode: row.location_pincode,
+        coordinates: {
+          latitude: row.latitude || 0,
+          longitude: row.longitude || 0
+        }
+      },
+      supervisor: {
+        name: row.supervisor_name,
+        contactNumber: row.supervisor_contact,
+        employeeId: row.supervisor_employee_id
+      },
+      capacity: {
+        pregnantWomen: row.capacity_pregnant_women,
+        children: row.capacity_children
+      },
       facilities: row.facilities ? JSON.parse(row.facilities) : [],
-      coverage_areas: row.coverage_areas ? JSON.parse(row.coverage_areas) : []
+      coverageAreas: row.coverage_areas ? JSON.parse(row.coverage_areas) : [],
+      establishedDate: row.established_date,
+      isActive: row.is_active === 1
     }));
     
+    console.log(`✅ Successfully retrieved ${anganwadis.length} anganwadi centers from database`);
     res.json(anganwadis);
   } catch (err) {
-    console.error('Error fetching anganwadis:', err);
+    console.error('❌ Error fetching anganwadis:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -40,11 +65,12 @@ router.post('/', [
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.log('❌ Validation errors:', errors.array());
     return res.status(400).json({ errors: errors.array() });
   }
 
   try {
-    console.log('Received anganwadi data on server:', req.body);
+    console.log('📝 Received anganwadi data from frontend:', JSON.stringify(req.body, null, 2));
     
     const anganwadiData = {
       id: uuidv4(),
@@ -66,7 +92,7 @@ router.post('/', [
       established_date: req.body.establishedDate
     };
 
-    console.log('Processed anganwadi data for database:', anganwadiData);
+    console.log('🔄 Processing anganwadi data for database storage:', JSON.stringify(anganwadiData, null, 2));
 
     const query = `
       INSERT INTO anganwadi_centers (
@@ -86,9 +112,9 @@ router.post('/', [
       anganwadiData.facilities, anganwadiData.coverage_areas, anganwadiData.established_date
     ];
 
-    console.log('Executing database query with values:', values);
+    console.log('💾 Executing database INSERT query...');
     await runQuery(query, values);
-    console.log('Anganwadi saved to database successfully');
+    console.log('✅ Anganwadi center successfully saved to database with ID:', anganwadiData.id);
     
     res.status(201).json({ 
       message: 'Anganwadi center created successfully', 
@@ -96,7 +122,7 @@ router.post('/', [
       anganwadi: anganwadiData
     });
   } catch (err) {
-    console.error('Error creating anganwadi:', err);
+    console.error('❌ Error creating anganwadi:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -104,26 +130,30 @@ router.post('/', [
 // Update anganwadi center
 router.put('/:id', async (req, res) => {
   try {
+    console.log(`📝 Updating anganwadi ${req.params.id} with data:`, JSON.stringify(req.body, null, 2));
+    
     const updates = { ...req.body };
     
     // Convert arrays to JSON strings
     if (updates.facilities) updates.facilities = JSON.stringify(updates.facilities);
-    if (updates.coverage_areas) updates.coverage_areas = JSON.stringify(updates.coverage_areas);
+    if (updates.coverageAreas) updates.coverage_areas = JSON.stringify(updates.coverageAreas);
 
     const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
     const values = [...Object.values(updates), req.params.id];
 
     const query = `UPDATE anganwadi_centers SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
 
+    console.log('💾 Executing database UPDATE query...');
     const result = await runQuery(query, values);
     
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Anganwadi center not found' });
     }
     
+    console.log('✅ Anganwadi center successfully updated in database');
     res.json({ message: 'Anganwadi center updated successfully' });
   } catch (err) {
-    console.error('Error updating anganwadi:', err);
+    console.error('❌ Error updating anganwadi:', err);
     res.status(500).json({ error: err.message });
   }
 });

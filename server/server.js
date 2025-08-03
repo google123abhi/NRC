@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const path = require('path');
 require('dotenv').config();
 
 const { initializeDatabase } = require('./database/init');
@@ -18,6 +17,7 @@ const surveyRoutes = require('./routes/surveys');
 const treatmentRoutes = require('./routes/treatments');
 const aiRoutes = require('./routes/ai');
 const bedRequestRoutes = require('./routes/bedRequests');
+const medicalRecordRoutes = require('./routes/medicalRecords');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -40,10 +40,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Initialize database with proper error handling
 try {
+  console.log('🔄 Initializing NRC Management Database...');
   initializeDatabase();
-  console.log('✅ Database initialization completed');
+  console.log('✅ Database initialization completed successfully');
+  console.log('📊 Sample data loaded for testing');
 } catch (error) {
   console.error('❌ Database initialization failed:', error);
+  process.exit(1);
 }
 
 // API Routes
@@ -59,14 +62,16 @@ app.use('/api/surveys', surveyRoutes);
 app.use('/api/treatments', treatmentRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/bed-requests', bedRequestRoutes);
+app.use('/api/medical-records', medicalRecordRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    database: 'SQLite Connected'
+    version: '2.0.0',
+    database: 'SQLite Connected & Initialized',
+    environment: NODE_ENV
   });
 });
 
@@ -86,9 +91,10 @@ app.use('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 NRC Management Server running on port ${PORT}`);
-  console.log(`📊 Environment: ${NODE_ENV}`);
+  console.log(`🌍 Environment: ${NODE_ENV}`);
   console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
-  console.log(`💾 Database: SQLite (Persistent Storage)`);
+  console.log(`💾 Database: SQLite with Full Schema (Persistent Storage)`);
+  console.log(`📡 API Endpoints: /api/patients, /api/anganwadis, /api/workers, /api/beds, /api/notifications`);
 });
 
 module.exports = app;

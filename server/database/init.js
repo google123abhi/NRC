@@ -12,7 +12,7 @@ if (!fs.existsSync(dbDir)) {
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
-    console.error('Error opening database:', err.message);
+    console.error('❌ Error opening database:', err.message);
   } else {
     console.log('📁 Connected to SQLite database at:', DB_PATH);
   }
@@ -37,12 +37,13 @@ const initializeDatabase = () => {
     statements.forEach((statement, index) => {
       db.run(statement + ';', (err) => {
         if (err) {
-          console.error(`Error executing statement ${index + 1}:`, err.message);
+          console.error(`❌ Error executing statement ${index + 1}:`, err.message);
         }
       });
     });
     
     console.log('✅ Database schema initialized successfully');
+    console.log('📊 Sample data loaded');
   } else {
     console.error('❌ Schema file not found:', schemaPath);
   }
@@ -53,8 +54,10 @@ const runQuery = (sql, params = []) => {
   return new Promise((resolve, reject) => {
     db.run(sql, params, function(err) {
       if (err) {
+        console.error('❌ Database query error:', err.message);
         reject(err);
       } else {
+        console.log('✅ Database query executed successfully');
         resolve({ id: this.lastID, changes: this.changes });
       }
     });
@@ -66,6 +69,7 @@ const getRow = (sql, params = []) => {
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => {
       if (err) {
+        console.error('❌ Database get error:', err.message);
         reject(err);
       } else {
         resolve(row);
@@ -79,8 +83,10 @@ const getAllRows = (sql, params = []) => {
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
       if (err) {
+        console.error('❌ Database select error:', err.message);
         reject(err);
       } else {
+        console.log(`✅ Retrieved ${rows.length} rows from database`);
         resolve(rows);
       }
     });

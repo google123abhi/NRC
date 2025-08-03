@@ -7,6 +7,7 @@ const router = express.Router();
 // Get notifications by role
 router.get('/role/:role', async (req, res) => {
   try {
+    console.log(`📊 Fetching notifications for role ${req.params.role} from database...`);
     const query = `
       SELECT * FROM notifications 
       WHERE user_role = ? 
@@ -14,9 +15,24 @@ router.get('/role/:role', async (req, res) => {
     `;
     
     const rows = await getAllRows(query, [req.params.role]);
-    res.json(rows);
+    
+    // Transform to frontend format
+    const notifications = rows.map(row => ({
+      id: row.id,
+      userRole: row.user_role,
+      type: row.type,
+      title: row.title,
+      message: row.message,
+      priority: row.priority,
+      actionRequired: row.action_required === 1,
+      read: row.read === 1,
+      date: row.date
+    }));
+    
+    console.log(`✅ Successfully retrieved ${notifications.length} notifications from database`);
+    res.json(notifications);
   } catch (err) {
-    console.error('Error fetching notifications:', err);
+    console.error('❌ Error fetching notifications:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -24,7 +40,7 @@ router.get('/role/:role', async (req, res) => {
 // Create notification
 router.post('/', async (req, res) => {
   try {
-    console.log('Received notification data on server:', req.body);
+    console.log('📝 Received notification data from frontend:', JSON.stringify(req.body, null, 2));
     
     const notificationData = {
       id: uuidv4(),
@@ -33,11 +49,11 @@ router.post('/', async (req, res) => {
       title: req.body.title,
       message: req.body.message,
       priority: req.body.priority || 'medium',
-      action_required: req.body.actionRequired || 0,
+      action_required: req.body.actionRequired ? 1 : 0,
       date: req.body.date || new Date().toISOString().split('T')[0]
     };
 
-    console.log('Processed notification data for database:', notificationData);
+    console.log('🔄 Processing notification data for database storage:', JSON.stringify(notificationData, null, 2));
 
     const query = `
       INSERT INTO notifications (id, user_role, type, title, message, priority, action_required, date)
@@ -50,9 +66,9 @@ router.post('/', async (req, res) => {
       notificationData.action_required, notificationData.date
     ];
 
-    console.log('Executing database query with values:', values);
+    console.log('💾 Executing database INSERT query...');
     await runQuery(query, values);
-    console.log('Notification saved to database successfully');
+    console.log('✅ Notification successfully saved to database with ID:', notificationData.id);
     
     res.status(201).json({ 
       message: 'Notification created successfully', 
@@ -60,7 +76,7 @@ router.post('/', async (req, res) => {
       notification: notificationData
     });
   } catch (err) {
-    console.error('Error creating notification:', err);
+    console.error('❌ Error creating notification:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -68,6 +84,7 @@ router.post('/', async (req, res) => {
 // Mark notification as read
 router.put('/:id/read', async (req, res) => {
   try {
+    console.log(`📝 Marking notification ${req.params.id} as read...`);
     const query = `UPDATE notifications SET read = 1 WHERE id = ?`;
 
     const result = await runQuery(query, [req.params.id]);
@@ -76,9 +93,10 @@ router.put('/:id/read', async (req, res) => {
       return res.status(404).json({ error: 'Notification not found' });
     }
     
+    console.log('✅ Notification successfully marked as read in database');
     res.json({ message: 'Notification marked as read' });
   } catch (err) {
-    console.error('Error updating notification:', err);
+    console.error('❌ Error updating notification:', err);
     res.status(500).json({ error: err.message });
   }
 });
