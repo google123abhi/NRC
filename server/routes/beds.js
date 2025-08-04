@@ -1,41 +1,37 @@
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
-const { db, getAllRows, runQuery, getRow } = require('../database/init');
+const Bed = require('../models/Bed');
+const Patient = require('../models/Patient');
+const Hospital = require('../models/Hospital');
 
 const router = express.Router();
 
 // Get all beds
 router.get('/', async (req, res) => {
   try {
-    console.log('📊 Fetching all beds from database...');
-    const query = `
-      SELECT b.*, p.name as patient_name, p.type as patient_type, p.nutrition_status,
-             h.name as hospital_name
-      FROM beds b
-      LEFT JOIN patients p ON b.patient_id = p.id
-      LEFT JOIN hospitals h ON b.hospital_id = h.id
-      ORDER BY b.ward, b.number
-    `;
+    console.log('📊 Fetching all beds from MongoDB...');
     
-    const rows = await getAllRows(query);
+    const beds = await Bed.find()
+      .populate('patient_id', 'name type nutrition_status')
+      .populate('hospital_id', 'name')
+      .sort({ ward: 1, number: 1 });
     
     // Transform to frontend format
-    const beds = rows.map(row => ({
-      id: row.id,
-      hospitalId: row.hospital_id,
-      number: row.number,
-      ward: row.ward,
-      status: row.status,
-      patientId: row.patient_id,
-      admissionDate: row.admission_date,
-      patientName: row.patient_name,
-      patientType: row.patient_type,
-      nutritionStatus: row.nutrition_status,
-      hospitalName: row.hospital_name
+    const transformedBeds = beds.map(bed => ({
+      id: bed._id,
+      hospitalId: bed.hospital_id?._id,
+      number: bed.number,
+      ward: bed.ward,
+      status: bed.status,
+      patientId: bed.patient_id?._id,
+      admissionDate: bed.admission_date,
+      patientName: bed.patient_id?.name,
+      patientType: bed.patient_id?.type,
+      nutritionStatus: bed.patient_id?.nutrition_status,
+      hospitalName: bed.hospital_id?.name
     }));
     
-    console.log(`✅ Successfully retrieved ${beds.length} beds from database`);
-    res.json(beds);
+    console.log(`✅ Successfully retrieved ${transformedBeds.length} beds from MongoDB`);
+    res.json(transformedBeds);
   } catch (err) {
     console.error('❌ Error fetching beds:', err);
     res.status(500).json({ error: err.message });
@@ -49,52 +45,44 @@ router.put('/:id', async (req, res) => {
     
     const { status, patientId, admissionDate } = req.body;
     
-    // Begin transaction
-    console.log('🔄 Starting database transaction...');
-    await runQuery('BEGIN TRANSACTION');
+    console.log('🔄 Starting MongoDB transaction...');
     
     // Update bed
-    const updateBedQuery = `
-      UPDATE beds 
-      SET status = ?, patient_id = ?, admission_date = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `;
+    const updatedBed = await Bed.findByIdAndUpdate(
+      req.params.id,
+      { 
+        $set: { 
+          status, 
+          patient_id: patientId || null, 
+          admission_date: admissionDate || null 
+        } 
+      },
+      { new: true, runValidators: true }
+    );
     
-    console.log('💾 Updating bed in database...');
-    const result = await runQuery(updateBedQuery, [status, patientId, admissionDate, req.params.id]);
-    
-    if (result.changes === 0) {
-      await runQuery('ROLLBACK');
+    if (!updatedBed) {
       return res.status(404).json({ error: 'Bed not found' });
     }
     
     // Update patient's bed assignment if assigning
     if (patientId) {
-      const updatePatientQuery = `
-        UPDATE patients 
-        SET bed_id = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `;
-      
       console.log('💾 Updating patient bed assignment...');
-      await runQuery(updatePatientQuery, [req.params.id, patientId]);
+      await Patient.findByIdAndUpdate(
+        patientId,
+        { $set: { bed_id: req.params.id } }
+      );
     } else if (status === 'available') {
       // Clear patient's bed assignment if freeing bed
-      const clearPatientBedQuery = `
-        UPDATE patients 
-        SET bed_id = NULL, updated_at = CURRENT_TIMESTAMP
-        WHERE bed_id = ?
-      `;
-      
       console.log('💾 Clearing patient bed assignment...');
-      await runQuery(clearPatientBedQuery, [req.params.id]);
+      await Patient.updateMany(
+        { bed_id: req.params.id },
+        { $unset: { bed_id: 1 } }
+      );
     }
     
-    await runQuery('COMMIT');
-    console.log('✅ Bed successfully updated in database');
-    res.json({ message: 'Bed updated successfully' });
+    console.log('✅ Bed successfully updated in MongoDB');
+    res.json({ message: 'Bed updated successfully', bed: updatedBed });
   } catch (err) {
-    await runQuery('ROLLBACK');
     console.error('❌ Error updating bed:', err);
     res.status(500).json({ error: err.message });
   }

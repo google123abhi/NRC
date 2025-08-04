@@ -1,35 +1,20 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { v4: uuidv4 } = require('uuid');
-const { db, getAllRows, runQuery, getRow } = require('../database/init');
+const Patient = require('../models/Patient');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 
 // Get all patients
 router.get('/', async (req, res) => {
   try {
-    console.log('📊 Fetching all patients from database...');
-    const query = `
-      SELECT p.*, b.number as bed_number, b.ward as bed_ward
-      FROM patients p
-      LEFT JOIN beds b ON p.bed_id = b.id
-      WHERE p.is_active = 1
-      ORDER BY p.created_at DESC
-    `;
+    console.log('📊 Fetching all patients from MongoDB...');
     
-    const rows = await getAllRows(query);
+    const patients = await Patient.find({ is_active: true })
+      .populate('bed_id')
+      .sort({ created_at: -1 });
     
-    // Parse JSON fields
-    const patients = rows.map(row => ({
-      ...row,
-      medical_history: row.medical_history ? JSON.parse(row.medical_history) : [],
-      symptoms: row.symptoms ? JSON.parse(row.symptoms) : [],
-      documents: row.documents ? JSON.parse(row.documents) : [],
-      photos: row.photos ? JSON.parse(row.photos) : [],
-      nutritional_deficiency: row.nutritional_deficiency ? JSON.parse(row.nutritional_deficiency) : []
-    }));
-    
-    console.log(`✅ Successfully retrieved ${patients.length} patients from database`);
+    console.log(`✅ Successfully retrieved ${patients.length} patients from MongoDB`);
     res.json(patients);
   } catch (err) {
     console.error('❌ Error fetching patients:', err);
@@ -40,31 +25,16 @@ router.get('/', async (req, res) => {
 // Get patient by ID
 router.get('/:id', async (req, res) => {
   try {
-    console.log(`📊 Fetching patient ${req.params.id} from database...`);
-    const query = `
-      SELECT p.*, b.number as bed_number, b.ward as bed_ward
-      FROM patients p
-      LEFT JOIN beds b ON p.bed_id = b.id
-      WHERE p.id = ? AND p.is_active = 1
-    `;
+    console.log(`📊 Fetching patient ${req.params.id} from MongoDB...`);
     
-    const row = await getRow(query, [req.params.id]);
+    const patient = await Patient.findById(req.params.id)
+      .populate('bed_id');
     
-    if (!row) {
+    if (!patient || !patient.is_active) {
       return res.status(404).json({ error: 'Patient not found' });
     }
     
-    // Parse JSON fields
-    const patient = {
-      ...row,
-      medical_history: row.medical_history ? JSON.parse(row.medical_history) : [],
-      symptoms: row.symptoms ? JSON.parse(row.symptoms) : [],
-      documents: row.documents ? JSON.parse(row.documents) : [],
-      photos: row.photos ? JSON.parse(row.photos) : [],
-      nutritional_deficiency: row.nutritional_deficiency ? JSON.parse(row.nutritional_deficiency) : []
-    };
-    
-    console.log(`✅ Successfully retrieved patient ${req.params.id} from database`);
+    console.log(`✅ Successfully retrieved patient ${req.params.id} from MongoDB`);
     res.json(patient);
   } catch (err) {
     console.error('❌ Error fetching patient:', err);
@@ -93,7 +63,6 @@ router.post('/', [
     console.log('📝 Received patient data from frontend:', JSON.stringify(req.body, null, 2));
     
     const patientData = {
-      id: uuidv4(),
       registration_number: `NRC${Date.now()}`,
       aadhaar_number: req.body.aadhaarNumber,
       name: req.body.name,
@@ -109,68 +78,44 @@ router.post('/', [
       temperature: req.body.temperature,
       hemoglobin: req.body.hemoglobin,
       nutrition_status: req.body.nutritionStatus,
-      medical_history: JSON.stringify(req.body.medicalHistory || []),
-      symptoms: JSON.stringify(req.body.symptoms || []),
-      documents: JSON.stringify(req.body.documents || []),
-      photos: JSON.stringify(req.body.photos || []),
+      medical_history: req.body.medicalHistory || [],
+      symptoms: req.body.symptoms || [],
+      documents: req.body.documents || [],
+      photos: req.body.photos || [],
       remarks: req.body.remarks,
       risk_score: req.body.riskScore || 0,
-      nutritional_deficiency: JSON.stringify(req.body.nutritionalDeficiency || []),
+      nutritional_deficiency: req.body.nutritionalDeficiency || [],
       registered_by: req.body.registeredBy
     };
 
-    console.log('🔄 Processing patient data for database storage:', JSON.stringify(patientData, null, 2));
+    console.log('🔄 Processing patient data for MongoDB storage:', JSON.stringify(patientData, null, 2));
 
-    const query = `
-      INSERT INTO patients (
-        id, registration_number, aadhaar_number, name, age, type, pregnancy_week,
-        contact_number, emergency_contact, address, weight, height, blood_pressure,
-        temperature, hemoglobin, nutrition_status, medical_history, symptoms,
-        documents, photos, remarks, risk_score, nutritional_deficiency,
-        registered_by, registration_date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    const values = [
-      patientData.id, patientData.registration_number, patientData.aadhaar_number,
-      patientData.name, patientData.age, patientData.type, patientData.pregnancy_week,
-      patientData.contact_number, patientData.emergency_contact, patientData.address,
-      patientData.weight, patientData.height, patientData.blood_pressure,
-      patientData.temperature, patientData.hemoglobin, patientData.nutrition_status,
-      patientData.medical_history, patientData.symptoms, patientData.documents,
-      patientData.photos, patientData.remarks, patientData.risk_score,
-      patientData.nutritional_deficiency, patientData.registered_by,
-      new Date().toISOString().split('T')[0]
-    ];
-
-    console.log('💾 Executing database INSERT query...');
-    await runQuery(query, values);
-    console.log('✅ Patient successfully saved to database with ID:', patientData.id);
+    const newPatient = new Patient(patientData);
+    const savedPatient = await newPatient.save();
+    
+    console.log('✅ Patient successfully saved to MongoDB with ID:', savedPatient._id);
 
     // Create notification for high-risk patients
     if ((patientData.risk_score && patientData.risk_score > 80) || patientData.nutrition_status === 'severely_malnourished') {
       console.log('🚨 Creating high-risk patient notification...');
-      const notificationQuery = `
-        INSERT INTO notifications (id, user_role, type, title, message, priority, action_required)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `;
       
-      await runQuery(notificationQuery, [
-        uuidv4(),
-        'supervisor',
-        'high_risk_alert',
-        'High Risk Patient Registered',
-        `New high-risk patient ${patientData.name} has been registered with ${patientData.nutrition_status} status.`,
-        'high',
-        1
-      ]);
+      const notification = new Notification({
+        user_role: 'supervisor',
+        type: 'high_risk_alert',
+        title: 'High Risk Patient Registered',
+        message: `New high-risk patient ${patientData.name} has been registered with ${patientData.nutrition_status} status.`,
+        priority: 'high',
+        action_required: true
+      });
+      
+      await notification.save();
       console.log('✅ High-risk notification created');
     }
 
     res.status(201).json({ 
       message: 'Patient created successfully', 
-      id: patientData.id,
-      patient: patientData
+      id: savedPatient._id,
+      patient: savedPatient
     });
   } catch (err) {
     console.error('❌ Error creating patient:', err);
@@ -185,31 +130,37 @@ router.put('/:id', async (req, res) => {
     
     const updates = { ...req.body };
     
-    // Convert arrays to JSON strings
-    if (updates.medicalHistory) updates.medical_history = JSON.stringify(updates.medicalHistory);
-    if (updates.symptoms) updates.symptoms = JSON.stringify(updates.symptoms);
-    if (updates.documents) updates.documents = JSON.stringify(updates.documents);
-    if (updates.photos) updates.photos = JSON.stringify(updates.photos);
-    if (updates.nutritionalDeficiency) updates.nutritional_deficiency = JSON.stringify(updates.nutritionalDeficiency);
+    // Convert frontend field names to database field names
+    if (updates.medicalHistory) {
+      updates.medical_history = updates.medicalHistory;
+      delete updates.medicalHistory;
+    }
+    if (updates.nutritionalDeficiency) {
+      updates.nutritional_deficiency = updates.nutritionalDeficiency;
+      delete updates.nutritionalDeficiency;
+    }
+    if (updates.contactNumber) {
+      updates.contact_number = updates.contactNumber;
+      delete updates.contactNumber;
+    }
+    if (updates.nutritionStatus) {
+      updates.nutrition_status = updates.nutritionStatus;
+      delete updates.nutritionStatus;
+    }
 
-    // Remove frontend field names that don't match database
-    delete updates.medicalHistory;
-    delete updates.nutritionalDeficiency;
-
-    const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-    const values = [...Object.values(updates), req.params.id];
-
-    const query = `UPDATE patients SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-
-    console.log('💾 Executing database UPDATE query...');
-    const result = await runQuery(query, values);
+    console.log('💾 Executing MongoDB update...');
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
     
-    if (result.changes === 0) {
+    if (!updatedPatient) {
       return res.status(404).json({ error: 'Patient not found' });
     }
     
-    console.log('✅ Patient successfully updated in database');
-    res.json({ message: 'Patient updated successfully' });
+    console.log('✅ Patient successfully updated in MongoDB');
+    res.json({ message: 'Patient updated successfully', patient: updatedPatient });
   } catch (err) {
     console.error('❌ Error updating patient:', err);
     res.status(500).json({ error: err.message });
@@ -220,15 +171,18 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     console.log(`🗑️ Soft deleting patient ${req.params.id}...`);
-    const query = `UPDATE patients SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-
-    const result = await runQuery(query, [req.params.id]);
     
-    if (result.changes === 0) {
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      req.params.id,
+      { $set: { is_active: false } },
+      { new: true }
+    );
+    
+    if (!updatedPatient) {
       return res.status(404).json({ error: 'Patient not found' });
     }
     
-    console.log('✅ Patient successfully deleted from database');
+    console.log('✅ Patient successfully deleted from MongoDB');
     res.json({ message: 'Patient deleted successfully' });
   } catch (err) {
     console.error('❌ Error deleting patient:', err);

@@ -1,54 +1,36 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { v4: uuidv4 } = require('uuid');
-const { db, getAllRows, runQuery, getRow } = require('../database/init');
+const AnganwadiCenter = require('../models/AnganwadiCenter');
 
 const router = express.Router();
 
 // Get all anganwadi centers
 router.get('/', async (req, res) => {
   try {
-    console.log('📊 Fetching all anganwadi centers from database...');
-    const query = `
-      SELECT * FROM anganwadi_centers 
-      WHERE is_active = 1
-      ORDER BY name
-    `;
+    console.log('📊 Fetching all anganwadi centers from MongoDB...');
     
-    const rows = await getAllRows(query);
+    const anganwadis = await AnganwadiCenter.find({ is_active: true })
+      .sort({ name: 1 });
     
-    // Parse JSON fields and transform to frontend format
-    const anganwadis = rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      code: row.code,
-      location: {
-        area: row.location_area,
-        district: row.location_district,
-        state: row.location_state,
-        pincode: row.location_pincode,
-        coordinates: {
-          latitude: row.latitude || 0,
-          longitude: row.longitude || 0
-        }
-      },
-      supervisor: {
-        name: row.supervisor_name,
-        contactNumber: row.supervisor_contact,
-        employeeId: row.supervisor_employee_id
-      },
+    // Transform to frontend format
+    const transformedAnganwadis = anganwadis.map(anganwadi => ({
+      id: anganwadi._id,
+      name: anganwadi.name,
+      code: anganwadi.code,
+      location: anganwadi.location,
+      supervisor: anganwadi.supervisor,
       capacity: {
-        pregnantWomen: row.capacity_pregnant_women,
-        children: row.capacity_children
+        pregnantWomen: anganwadi.capacity.pregnant_women,
+        children: anganwadi.capacity.children
       },
-      facilities: row.facilities ? JSON.parse(row.facilities) : [],
-      coverageAreas: row.coverage_areas ? JSON.parse(row.coverage_areas) : [],
-      establishedDate: row.established_date,
-      isActive: row.is_active === 1
+      facilities: anganwadi.facilities,
+      coverageAreas: anganwadi.coverage_areas,
+      establishedDate: anganwadi.established_date,
+      isActive: anganwadi.is_active
     }));
     
-    console.log(`✅ Successfully retrieved ${anganwadis.length} anganwadi centers from database`);
-    res.json(anganwadis);
+    console.log(`✅ Successfully retrieved ${transformedAnganwadis.length} anganwadi centers from MongoDB`);
+    res.json(transformedAnganwadis);
   } catch (err) {
     console.error('❌ Error fetching anganwadis:', err);
     res.status(500).json({ error: err.message });
@@ -73,53 +55,43 @@ router.post('/', [
     console.log('📝 Received anganwadi data from frontend:', JSON.stringify(req.body, null, 2));
     
     const anganwadiData = {
-      id: uuidv4(),
       name: req.body.name,
       code: req.body.code,
-      location_area: req.body.location.area,
-      location_district: req.body.location.district,
-      location_state: req.body.location.state,
-      location_pincode: req.body.location.pincode,
-      latitude: req.body.location.coordinates?.latitude,
-      longitude: req.body.location.coordinates?.longitude,
-      supervisor_name: req.body.supervisor.name,
-      supervisor_contact: req.body.supervisor.contactNumber,
-      supervisor_employee_id: req.body.supervisor.employeeId,
-      capacity_pregnant_women: req.body.capacity.pregnantWomen,
-      capacity_children: req.body.capacity.children,
-      facilities: JSON.stringify(req.body.facilities || []),
-      coverage_areas: JSON.stringify(req.body.coverageAreas || []),
+      location: {
+        area: req.body.location.area,
+        district: req.body.location.district,
+        state: req.body.location.state,
+        pincode: req.body.location.pincode,
+        coordinates: {
+          latitude: req.body.location.coordinates?.latitude,
+          longitude: req.body.location.coordinates?.longitude
+        }
+      },
+      supervisor: {
+        name: req.body.supervisor.name,
+        contact_number: req.body.supervisor.contactNumber,
+        employee_id: req.body.supervisor.employeeId
+      },
+      capacity: {
+        pregnant_women: req.body.capacity.pregnantWomen,
+        children: req.body.capacity.children
+      },
+      facilities: req.body.facilities || [],
+      coverage_areas: req.body.coverageAreas || [],
       established_date: req.body.establishedDate
     };
 
-    console.log('🔄 Processing anganwadi data for database storage:', JSON.stringify(anganwadiData, null, 2));
+    console.log('🔄 Processing anganwadi data for MongoDB storage:', JSON.stringify(anganwadiData, null, 2));
 
-    const query = `
-      INSERT INTO anganwadi_centers (
-        id, name, code, location_area, location_district, location_state, 
-        location_pincode, latitude, longitude, supervisor_name, supervisor_contact, 
-        supervisor_employee_id, capacity_pregnant_women, capacity_children, 
-        facilities, coverage_areas, established_date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    const values = [
-      anganwadiData.id, anganwadiData.name, anganwadiData.code,
-      anganwadiData.location_area, anganwadiData.location_district, anganwadiData.location_state,
-      anganwadiData.location_pincode, anganwadiData.latitude, anganwadiData.longitude,
-      anganwadiData.supervisor_name, anganwadiData.supervisor_contact, anganwadiData.supervisor_employee_id,
-      anganwadiData.capacity_pregnant_women, anganwadiData.capacity_children,
-      anganwadiData.facilities, anganwadiData.coverage_areas, anganwadiData.established_date
-    ];
-
-    console.log('💾 Executing database INSERT query...');
-    await runQuery(query, values);
-    console.log('✅ Anganwadi center successfully saved to database with ID:', anganwadiData.id);
+    const newAnganwadi = new AnganwadiCenter(anganwadiData);
+    const savedAnganwadi = await newAnganwadi.save();
+    
+    console.log('✅ Anganwadi center successfully saved to MongoDB with ID:', savedAnganwadi._id);
     
     res.status(201).json({ 
       message: 'Anganwadi center created successfully', 
-      id: anganwadiData.id,
-      anganwadi: anganwadiData
+      id: savedAnganwadi._id,
+      anganwadi: savedAnganwadi
     });
   } catch (err) {
     console.error('❌ Error creating anganwadi:', err);
@@ -134,24 +106,19 @@ router.put('/:id', async (req, res) => {
     
     const updates = { ...req.body };
     
-    // Convert arrays to JSON strings
-    if (updates.facilities) updates.facilities = JSON.stringify(updates.facilities);
-    if (updates.coverageAreas) updates.coverage_areas = JSON.stringify(updates.coverageAreas);
-
-    const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-    const values = [...Object.values(updates), req.params.id];
-
-    const query = `UPDATE anganwadi_centers SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-
-    console.log('💾 Executing database UPDATE query...');
-    const result = await runQuery(query, values);
+    console.log('💾 Executing MongoDB update...');
+    const updatedAnganwadi = await AnganwadiCenter.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
     
-    if (result.changes === 0) {
+    if (!updatedAnganwadi) {
       return res.status(404).json({ error: 'Anganwadi center not found' });
     }
     
-    console.log('✅ Anganwadi center successfully updated in database');
-    res.json({ message: 'Anganwadi center updated successfully' });
+    console.log('✅ Anganwadi center successfully updated in MongoDB');
+    res.json({ message: 'Anganwadi center updated successfully', anganwadi: updatedAnganwadi });
   } catch (err) {
     console.error('❌ Error updating anganwadi:', err);
     res.status(500).json({ error: err.message });

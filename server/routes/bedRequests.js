@@ -1,55 +1,43 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { v4: uuidv4 } = require('uuid');
-const { db, getAllRows, runQuery, getRow } = require('../database/init');
+const BedRequest = require('../models/BedRequest');
+const Patient = require('../models/Patient');
+const User = require('../models/User');
 
 const router = express.Router();
 
 // Get all bed requests
 router.get('/', async (req, res) => {
   try {
-    console.log('📊 Fetching all bed requests from database...');
-    const query = `
-      SELECT br.*, 
-             p.name as patient_name,
-             p.type as patient_type,
-             p.nutrition_status,
-             u1.name as requested_by_name,
-             u2.name as reviewed_by_name
-      FROM bed_requests br
-      JOIN patients p ON br.patient_id = p.id
-      LEFT JOIN users u1 ON br.requested_by = u1.employee_id
-      LEFT JOIN users u2 ON br.reviewed_by = u2.employee_id
-      ORDER BY br.created_at DESC
-    `;
+    console.log('📊 Fetching all bed requests from MongoDB...');
     
-    const rows = await getAllRows(query);
+    const bedRequests = await BedRequest.find()
+      .populate('patient_id', 'name type nutrition_status')
+      .sort({ created_at: -1 });
     
     // Transform to frontend format
-    const bedRequests = rows.map(row => ({
-      id: row.id,
-      patientId: row.patient_id,
-      requestedBy: row.requested_by,
-      requestDate: row.request_date,
-      urgencyLevel: row.urgency_level,
-      medicalJustification: row.medical_justification,
-      currentCondition: row.current_condition,
-      estimatedStayDuration: row.estimated_stay_duration,
-      specialRequirements: row.special_requirements,
-      status: row.status,
-      reviewedBy: row.reviewed_by,
-      reviewDate: row.review_date,
-      reviewComments: row.review_comments,
-      hospitalReferral: row.hospital_referral ? JSON.parse(row.hospital_referral) : null,
-      patientName: row.patient_name,
-      patientType: row.patient_type,
-      nutritionStatus: row.nutrition_status,
-      requestedByName: row.requested_by_name,
-      reviewedByName: row.reviewed_by_name
+    const transformedRequests = bedRequests.map(request => ({
+      id: request._id,
+      patientId: request.patient_id._id,
+      requestedBy: request.requested_by,
+      requestDate: request.request_date,
+      urgencyLevel: request.urgency_level,
+      medicalJustification: request.medical_justification,
+      currentCondition: request.current_condition,
+      estimatedStayDuration: request.estimated_stay_duration,
+      specialRequirements: request.special_requirements,
+      status: request.status,
+      reviewedBy: request.reviewed_by,
+      reviewDate: request.review_date,
+      reviewComments: request.review_comments,
+      hospitalReferral: request.hospital_referral,
+      patientName: request.patient_id.name,
+      patientType: request.patient_id.type,
+      nutritionStatus: request.patient_id.nutrition_status
     }));
     
-    console.log(`✅ Successfully retrieved ${bedRequests.length} bed requests from database`);
-    res.json(bedRequests);
+    console.log(`✅ Successfully retrieved ${transformedRequests.length} bed requests from MongoDB`);
+    res.json(transformedRequests);
   } catch (err) {
     console.error('❌ Error fetching bed requests:', err);
     res.status(500).json({ error: err.message });
@@ -74,10 +62,9 @@ router.post('/', [
     console.log('📝 Received bed request data from frontend:', JSON.stringify(req.body, null, 2));
 
     const requestData = {
-      id: uuidv4(),
       patient_id: req.body.patientId,
       requested_by: req.body.requestedBy,
-      request_date: req.body.requestDate || new Date().toISOString().split('T')[0],
+      request_date: req.body.requestDate || new Date(),
       urgency_level: req.body.urgencyLevel,
       medical_justification: req.body.medicalJustification,
       current_condition: req.body.currentCondition,
@@ -86,31 +73,17 @@ router.post('/', [
       status: req.body.status || 'pending'
     };
 
-    console.log('🔄 Processing bed request data for database storage:', JSON.stringify(requestData, null, 2));
+    console.log('🔄 Processing bed request data for MongoDB storage:', JSON.stringify(requestData, null, 2));
 
-    const query = `
-      INSERT INTO bed_requests (
-        id, patient_id, requested_by, request_date, urgency_level,
-        medical_justification, current_condition, estimated_stay_duration,
-        special_requirements, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    const values = [
-      requestData.id, requestData.patient_id, requestData.requested_by,
-      requestData.request_date, requestData.urgency_level, requestData.medical_justification,
-      requestData.current_condition, requestData.estimated_stay_duration,
-      requestData.special_requirements, requestData.status
-    ];
-
-    console.log('💾 Executing database INSERT query...');
-    await runQuery(query, values);
-    console.log('✅ Bed request successfully saved to database with ID:', requestData.id);
+    const newBedRequest = new BedRequest(requestData);
+    const savedBedRequest = await newBedRequest.save();
+    
+    console.log('✅ Bed request successfully saved to MongoDB with ID:', savedBedRequest._id);
     
     res.status(201).json({ 
       message: 'Bed request created successfully', 
-      id: requestData.id,
-      bedRequest: requestData
+      id: savedBedRequest._id,
+      bedRequest: savedBedRequest
     });
   } catch (err) {
     console.error('❌ Error creating bed request:', err);
@@ -123,21 +96,21 @@ router.put('/:id', async (req, res) => {
   try {
     console.log(`📝 Updating bed request ${req.params.id} with data:`, JSON.stringify(req.body, null, 2));
     
-    const updates = req.body;
-    const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-    const values = [...Object.values(updates), req.params.id];
-
-    const query = `UPDATE bed_requests SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-
-    console.log('💾 Executing database UPDATE query...');
-    const result = await runQuery(query, values);
+    const updates = { ...req.body };
     
-    if (result.changes === 0) {
+    console.log('💾 Executing MongoDB update...');
+    const updatedBedRequest = await BedRequest.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedBedRequest) {
       return res.status(404).json({ error: 'Bed request not found' });
     }
     
-    console.log('✅ Bed request successfully updated in database');
-    res.json({ message: 'Bed request updated successfully' });
+    console.log('✅ Bed request successfully updated in MongoDB');
+    res.json({ message: 'Bed request updated successfully', bedRequest: updatedBedRequest });
   } catch (err) {
     console.error('❌ Error updating bed request:', err);
     res.status(500).json({ error: err.message });

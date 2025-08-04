@@ -1,52 +1,40 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { v4: uuidv4 } = require('uuid');
-const { db, getAllRows, runQuery, getRow } = require('../database/init');
+const Worker = require('../models/Worker');
+const AnganwadiCenter = require('../models/AnganwadiCenter');
 
 const router = express.Router();
 
 // Get all workers
 router.get('/', async (req, res) => {
   try {
-    console.log('📊 Fetching all workers from database...');
-    const query = `
-      SELECT w.*, a.name as anganwadi_name, a.location_area
-      FROM workers w
-      LEFT JOIN anganwadi_centers a ON w.anganwadi_id = a.id
-      WHERE w.is_active = 1
-      ORDER BY w.name
-    `;
+    console.log('📊 Fetching all workers from MongoDB...');
     
-    const rows = await getAllRows(query);
+    const workers = await Worker.find({ is_active: true })
+      .populate('anganwadi_id', 'name location')
+      .sort({ name: 1 });
     
-    // Parse JSON fields and transform to frontend format
-    const workers = rows.map(row => ({
-      id: row.id,
-      employeeId: row.employee_id,
-      name: row.name,
-      role: row.role,
-      anganwadiId: row.anganwadi_id,
-      contactNumber: row.contact_number,
-      address: row.address,
-      assignedAreas: row.assigned_areas ? JSON.parse(row.assigned_areas) : [],
-      qualifications: row.qualifications ? JSON.parse(row.qualifications) : [],
-      workingHours: {
-        start: row.working_hours_start,
-        end: row.working_hours_end
-      },
-      emergencyContact: {
-        name: row.emergency_contact_name,
-        relation: row.emergency_contact_relation,
-        contactNumber: row.emergency_contact_number
-      },
-      joinDate: row.join_date,
-      isActive: row.is_active === 1,
-      anganwadiName: row.anganwadi_name,
-      anganwadiArea: row.location_area
+    // Transform to frontend format
+    const transformedWorkers = workers.map(worker => ({
+      id: worker._id,
+      employeeId: worker.employee_id,
+      name: worker.name,
+      role: worker.role,
+      anganwadiId: worker.anganwadi_id?._id,
+      contactNumber: worker.contact_number,
+      address: worker.address,
+      assignedAreas: worker.assigned_areas,
+      qualifications: worker.qualifications,
+      workingHours: worker.working_hours,
+      emergencyContact: worker.emergency_contact,
+      joinDate: worker.join_date,
+      isActive: worker.is_active,
+      anganwadiName: worker.anganwadi_id?.name,
+      anganwadiArea: worker.anganwadi_id?.location?.area
     }));
     
-    console.log(`✅ Successfully retrieved ${workers.length} workers from database`);
-    res.json(workers);
+    console.log(`✅ Successfully retrieved ${transformedWorkers.length} workers from MongoDB`);
+    res.json(transformedWorkers);
   } catch (err) {
     console.error('❌ Error fetching workers:', err);
     res.status(500).json({ error: err.message });
@@ -70,50 +58,30 @@ router.post('/', [
     console.log('📝 Received worker data from frontend:', JSON.stringify(req.body, null, 2));
     
     const workerData = {
-      id: uuidv4(),
       employee_id: req.body.employeeId,
       name: req.body.name,
       role: req.body.role,
       anganwadi_id: req.body.anganwadiId,
       contact_number: req.body.contactNumber,
       address: req.body.address,
-      assigned_areas: JSON.stringify(req.body.assignedAreas || []),
-      qualifications: JSON.stringify(req.body.qualifications || []),
-      working_hours_start: req.body.workingHours?.start,
-      working_hours_end: req.body.workingHours?.end,
-      emergency_contact_name: req.body.emergencyContact?.name,
-      emergency_contact_relation: req.body.emergencyContact?.relation,
-      emergency_contact_number: req.body.emergencyContact?.contactNumber,
+      assigned_areas: req.body.assignedAreas || [],
+      qualifications: req.body.qualifications || [],
+      working_hours: req.body.workingHours,
+      emergency_contact: req.body.emergencyContact,
       join_date: req.body.joinDate
     };
 
-    console.log('🔄 Processing worker data for database storage:', JSON.stringify(workerData, null, 2));
+    console.log('🔄 Processing worker data for MongoDB storage:', JSON.stringify(workerData, null, 2));
 
-    const query = `
-      INSERT INTO workers (
-        id, employee_id, name, role, anganwadi_id, contact_number, address,
-        assigned_areas, qualifications, working_hours_start, working_hours_end,
-        emergency_contact_name, emergency_contact_relation, emergency_contact_number,
-        join_date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    const values = [
-      workerData.id, workerData.employee_id, workerData.name, workerData.role,
-      workerData.anganwadi_id, workerData.contact_number, workerData.address,
-      workerData.assigned_areas, workerData.qualifications, workerData.working_hours_start,
-      workerData.working_hours_end, workerData.emergency_contact_name, workerData.emergency_contact_relation,
-      workerData.emergency_contact_number, workerData.join_date
-    ];
-
-    console.log('💾 Executing database INSERT query...');
-    await runQuery(query, values);
-    console.log('✅ Worker successfully saved to database with ID:', workerData.id);
+    const newWorker = new Worker(workerData);
+    const savedWorker = await newWorker.save();
+    
+    console.log('✅ Worker successfully saved to MongoDB with ID:', savedWorker._id);
     
     res.status(201).json({ 
       message: 'Worker created successfully', 
-      id: workerData.id,
-      worker: workerData
+      id: savedWorker._id,
+      worker: savedWorker
     });
   } catch (err) {
     console.error('❌ Error creating worker:', err);
@@ -128,27 +96,49 @@ router.put('/:id', async (req, res) => {
     
     const updates = { ...req.body };
     
-    // Convert arrays to JSON strings
-    if (updates.assignedAreas) updates.assigned_areas = JSON.stringify(updates.assignedAreas);
-    if (updates.qualifications) updates.qualifications = JSON.stringify(updates.qualifications);
+    // Convert frontend field names to database field names
+    if (updates.employeeId) {
+      updates.employee_id = updates.employeeId;
+      delete updates.employeeId;
+    }
+    if (updates.contactNumber) {
+      updates.contact_number = updates.contactNumber;
+      delete updates.contactNumber;
+    }
+    if (updates.assignedAreas) {
+      updates.assigned_areas = updates.assignedAreas;
+      delete updates.assignedAreas;
+    }
+    if (updates.workingHours) {
+      updates.working_hours = updates.workingHours;
+      delete updates.workingHours;
+    }
+    if (updates.emergencyContact) {
+      updates.emergency_contact = updates.emergencyContact;
+      delete updates.emergencyContact;
+    }
+    if (updates.joinDate) {
+      updates.join_date = updates.joinDate;
+      delete updates.joinDate;
+    }
+    if (updates.isActive !== undefined) {
+      updates.is_active = updates.isActive;
+      delete updates.isActive;
+    }
 
-    // Remove frontend field names that don't match database
-    delete updates.assignedAreas;
-
-    const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-    const values = [...Object.values(updates), req.params.id];
-
-    const query = `UPDATE workers SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-
-    console.log('💾 Executing database UPDATE query...');
-    const result = await runQuery(query, values);
+    console.log('💾 Executing MongoDB update...');
+    const updatedWorker = await Worker.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
     
-    if (result.changes === 0) {
+    if (!updatedWorker) {
       return res.status(404).json({ error: 'Worker not found' });
     }
     
-    console.log('✅ Worker successfully updated in database');
-    res.json({ message: 'Worker updated successfully' });
+    console.log('✅ Worker successfully updated in MongoDB');
+    res.json({ message: 'Worker updated successfully', worker: updatedWorker });
   } catch (err) {
     console.error('❌ Error updating worker:', err);
     res.status(500).json({ error: err.message });

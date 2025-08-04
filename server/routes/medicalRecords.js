@@ -1,59 +1,55 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { v4: uuidv4 } = require('uuid');
-const { db, getAllRows, runQuery, getRow } = require('../database/init');
+const MedicalRecord = require('../models/MedicalRecord');
+const Patient = require('../models/Patient');
 
 const router = express.Router();
 
 // Get medical records for a patient
 router.get('/patient/:patientId', async (req, res) => {
   try {
-    console.log(`📊 Fetching medical records for patient ${req.params.patientId} from database...`);
-    const query = `
-      SELECT * FROM medical_records 
-      WHERE patient_id = ? 
-      ORDER BY visit_date DESC
-    `;
+    console.log(`📊 Fetching medical records for patient ${req.params.patientId} from MongoDB...`);
     
-    const rows = await getAllRows(query, [req.params.patientId]);
+    const records = await MedicalRecord.find({ patient_id: req.params.patientId })
+      .sort({ visit_date: -1 });
     
-    // Parse JSON fields and transform to frontend format
-    const records = rows.map(row => ({
-      id: row.id,
-      patientId: row.patient_id,
-      date: row.visit_date,
-      visitType: row.visit_type,
-      healthWorkerId: row.health_worker_id,
+    // Transform to frontend format
+    const transformedRecords = records.map(record => ({
+      id: record._id,
+      patientId: record.patient_id,
+      date: record.visit_date,
+      visitType: record.visit_type,
+      healthWorkerId: record.health_worker_id,
       vitals: {
-        weight: row.weight,
-        height: row.height,
-        temperature: row.temperature,
-        bloodPressure: row.blood_pressure,
-        pulse: row.pulse,
-        respiratoryRate: row.respiratory_rate,
-        oxygenSaturation: row.oxygen_saturation
+        weight: record.weight,
+        height: record.height,
+        temperature: record.temperature,
+        bloodPressure: record.blood_pressure,
+        pulse: record.pulse,
+        respiratoryRate: record.respiratory_rate,
+        oxygenSaturation: record.oxygen_saturation
       },
-      symptoms: row.symptoms ? JSON.parse(row.symptoms) : [],
-      diagnosis: row.diagnosis ? JSON.parse(row.diagnosis) : [],
-      treatment: row.treatment ? JSON.parse(row.treatment) : [],
+      symptoms: record.symptoms,
+      diagnosis: record.diagnosis,
+      treatment: record.treatment,
       nutritionAssessment: {
-        appetite: row.appetite,
-        foodIntake: row.food_intake,
-        supplements: row.supplements ? JSON.parse(row.supplements) : [],
-        dietPlan: row.diet_plan
+        appetite: record.appetite,
+        foodIntake: record.food_intake,
+        supplements: record.supplements,
+        dietPlan: record.diet_plan
       },
       labResults: {
-        hemoglobin: row.hemoglobin,
-        bloodSugar: row.blood_sugar,
-        proteinLevel: row.protein_level
+        hemoglobin: record.hemoglobin,
+        bloodSugar: record.blood_sugar,
+        proteinLevel: record.protein_level
       },
-      notes: row.notes,
-      nextVisitDate: row.next_visit_date,
-      followUpRequired: row.follow_up_required === 1
+      notes: record.notes,
+      nextVisitDate: record.next_visit_date,
+      followUpRequired: record.follow_up_required
     }));
     
-    console.log(`✅ Successfully retrieved ${records.length} medical records from database`);
-    res.json(records);
+    console.log(`✅ Successfully retrieved ${transformedRecords.length} medical records from MongoDB`);
+    res.json(transformedRecords);
   } catch (err) {
     console.error('❌ Error fetching medical records:', err);
     res.status(500).json({ error: err.message });
@@ -77,9 +73,8 @@ router.post('/', [
     console.log('📝 Received medical record data from frontend:', JSON.stringify(req.body, null, 2));
 
     const recordData = {
-      id: uuidv4(),
       patient_id: req.body.patientId,
-      visit_date: req.body.date || new Date().toISOString().split('T')[0],
+      visit_date: req.body.date || new Date(),
       visit_type: req.body.visitType,
       health_worker_id: req.body.healthWorkerId,
       weight: req.body.vitals.weight,
@@ -89,61 +84,38 @@ router.post('/', [
       pulse: req.body.vitals.pulse,
       respiratory_rate: req.body.vitals.respiratoryRate,
       oxygen_saturation: req.body.vitals.oxygenSaturation,
-      symptoms: JSON.stringify(req.body.symptoms || []),
-      diagnosis: JSON.stringify(req.body.diagnosis || []),
-      treatment: JSON.stringify(req.body.treatment || []),
+      symptoms: req.body.symptoms || [],
+      diagnosis: req.body.diagnosis || [],
+      treatment: req.body.treatment || [],
       appetite: req.body.nutritionAssessment?.appetite,
       food_intake: req.body.nutritionAssessment?.foodIntake,
-      supplements: JSON.stringify(req.body.nutritionAssessment?.supplements || []),
+      supplements: req.body.nutritionAssessment?.supplements || [],
       diet_plan: req.body.nutritionAssessment?.dietPlan,
       hemoglobin: req.body.labResults?.hemoglobin,
       blood_sugar: req.body.labResults?.bloodSugar,
       protein_level: req.body.labResults?.proteinLevel,
       notes: req.body.notes,
       next_visit_date: req.body.nextVisitDate,
-      follow_up_required: req.body.followUpRequired ? 1 : 0
+      follow_up_required: req.body.followUpRequired || false
     };
 
-    console.log('🔄 Processing medical record data for database storage:', JSON.stringify(recordData, null, 2));
+    console.log('🔄 Processing medical record data for MongoDB storage:', JSON.stringify(recordData, null, 2));
 
-    const query = `
-      INSERT INTO medical_records (
-        id, patient_id, visit_date, visit_type, health_worker_id, weight, height,
-        temperature, blood_pressure, pulse, respiratory_rate, oxygen_saturation,
-        symptoms, diagnosis, treatment, appetite, food_intake, supplements,
-        diet_plan, hemoglobin, blood_sugar, protein_level, notes,
-        next_visit_date, follow_up_required
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    const values = [
-      recordData.id, recordData.patient_id, recordData.visit_date,
-      recordData.visit_type, recordData.health_worker_id, recordData.weight, recordData.height,
-      recordData.temperature, recordData.blood_pressure, recordData.pulse,
-      recordData.respiratory_rate, recordData.oxygen_saturation, recordData.symptoms,
-      recordData.diagnosis, recordData.treatment, recordData.appetite,
-      recordData.food_intake, recordData.supplements, recordData.diet_plan,
-      recordData.hemoglobin, recordData.blood_sugar, recordData.protein_level,
-      recordData.notes, recordData.next_visit_date, recordData.follow_up_required
-    ];
-
-    console.log('💾 Executing database INSERT query...');
-    await runQuery(query, values);
+    const newMedicalRecord = new MedicalRecord(recordData);
+    const savedMedicalRecord = await newMedicalRecord.save();
 
     // Update patient's last visit date
-    const updatePatientQuery = `
-      UPDATE patients 
-      SET last_visit_date = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `;
-    
     console.log('💾 Updating patient last visit date...');
-    await runQuery(updatePatientQuery, [recordData.visit_date, recordData.patient_id]);
+    await Patient.findByIdAndUpdate(
+      recordData.patient_id,
+      { $set: { last_visit_date: recordData.visit_date } }
+    );
 
-    console.log('✅ Medical record successfully saved to database with ID:', recordData.id);
+    console.log('✅ Medical record successfully saved to MongoDB with ID:', savedMedicalRecord._id);
     res.status(201).json({ 
       message: 'Medical record created successfully', 
-      id: recordData.id 
+      id: savedMedicalRecord._id,
+      medicalRecord: savedMedicalRecord
     });
   } catch (err) {
     console.error('❌ Error creating medical record:', err);
