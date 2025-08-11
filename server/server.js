@@ -13,9 +13,6 @@ const visitRoutes = require('./routes/visits');
 const notificationRoutes = require('./routes/notifications');
 const workerRoutes = require('./routes/workers');
 const anganwadiRoutes = require('./routes/anganwadis');
-const surveyRoutes = require('./routes/surveys');
-const treatmentRoutes = require('./routes/treatments');
-const aiRoutes = require('./routes/ai');
 const bedRequestRoutes = require('./routes/bedRequests');
 
 const app = express();
@@ -26,7 +23,7 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: FRONTEND_URL,
   credentials: true
 }));
 
@@ -62,9 +59,6 @@ app.use('/api/visits', visitRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/workers', workerRoutes);
 app.use('/api/anganwadis', anganwadiRoutes);
-app.use('/api/surveys', surveyRoutes);
-app.use('/api/treatments', treatmentRoutes);
-app.use('/api/ai', aiRoutes);
 app.use('/api/bed-requests', bedRequestRoutes);
 
 // Health check endpoint

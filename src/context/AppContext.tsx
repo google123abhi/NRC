@@ -553,7 +553,7 @@ const translations = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // State - All data comes from server, no local storage
+  // State - All data comes from MongoDB via Node.js server
   const [patients, setPatients] = useState<Patient[]>([]);
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
   const [beds, setBeds] = useState<Bed[]>([]);
@@ -573,12 +573,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [userRole, setUserRole] = useState<'anganwadi_worker' | 'supervisor' | 'hospital' | null>(null);
   const [language, setLanguage] = useState<'en' | 'hi'>('en');
 
-  // API Base URL - Fixed to use correct environment variable
-  const API_BASE_URL = 'http://localhost:3001/api';
+  // API Base URL
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
-  // API Helper function - Sends data to Node server, which handles database
+  // API Helper function - All data goes through Node.js server to MongoDB
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     try {
+      console.log(`🌐 Frontend API Call: ${endpoint}`);
+      console.log('📤 Request data:', options.body ? JSON.parse(options.body as string) : 'No body');
+      
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         headers: {
           'Content-Type': 'application/json',
@@ -591,140 +594,391 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         throw new Error(`API call failed: ${response.statusText}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      console.log(`📥 Response from server:`, data);
+      return data;
     } catch (error) {
-      console.error(`API Error for ${endpoint}:`, error);
-      throw error; // Re-throw to handle in calling function
+      console.error(`❌ Frontend API Error for ${endpoint}:`, error);
+      throw error;
     }
   };
 
-  // Load data from server on mount and when user role changes
+  // Load all data from MongoDB via Node.js server
   useEffect(() => {
-    const loadData = async () => {
+    const loadAllData = async () => {
       try {
-        console.log('Loading data from server...');
+        console.log('🔄 Loading all data from MongoDB via Node.js server...');
         
-        // Load patients from server
+        // Load patients
         const patientsData = await apiCall('/patients');
-        if (patientsData) {
-          setPatients(patientsData);
-          console.log('Patients loaded:', patientsData.length);
+        if (Array.isArray(patientsData)) {
+          setPatients(patientsData.map(p => ({
+            id: p._id,
+            registrationNumber: p.registration_number,
+            aadhaarNumber: p.aadhaar_number,
+            name: p.name,
+            age: p.age,
+            type: p.type,
+            pregnancyWeek: p.pregnancy_week,
+            contactNumber: p.contact_number,
+            emergencyContact: p.emergency_contact,
+            address: p.address,
+            weight: p.weight,
+            height: p.height,
+            bloodPressure: p.blood_pressure,
+            temperature: p.temperature,
+            hemoglobin: p.hemoglobin,
+            nutritionStatus: p.nutrition_status,
+            medicalHistory: p.medical_history || [],
+            symptoms: p.symptoms || [],
+            documents: p.documents || [],
+            photos: p.photos || [],
+            remarks: p.remarks,
+            riskScore: p.risk_score,
+            nutritionalDeficiency: p.nutritional_deficiency || [],
+            bedId: p.bed_id,
+            lastVisitDate: p.last_visit_date,
+            nextVisitDate: p.next_visit_date,
+            registeredBy: p.registered_by,
+            registrationDate: p.registration_date,
+            admissionDate: p.registration_date,
+            nextVisit: p.next_visit_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          })));
+          console.log('✅ Patients loaded from MongoDB:', patientsData.length);
         }
 
-        // Load beds from server
+        // Load beds
         const bedsData = await apiCall('/beds');
-        if (bedsData) {
-          setBeds(bedsData);
-          console.log('Beds loaded:', bedsData.length);
+        if (Array.isArray(bedsData)) {
+          setBeds(bedsData.map(b => ({
+            id: b._id,
+            hospitalId: b.hospital_id,
+            number: b.number,
+            ward: b.ward,
+            status: b.status,
+            patientId: b.patient_id,
+            admissionDate: b.admission_date
+          })));
+          console.log('✅ Beds loaded from MongoDB:', bedsData.length);
         }
 
-        // Load anganwadis from server
+        // Load anganwadis
         const anganwadisData = await apiCall('/anganwadis');
-        if (anganwadisData) {
-          setAnganwadis(anganwadisData);
-          console.log('Anganwadis loaded:', anganwadisData.length);
+        if (Array.isArray(anganwadisData)) {
+          setAnganwadis(anganwadisData.map(a => ({
+            id: a._id,
+            name: a.name,
+            code: a.code,
+            location: {
+              area: a.location.area,
+              district: a.location.district,
+              state: a.location.state,
+              pincode: a.location.pincode,
+              coordinates: {
+                latitude: a.location.coordinates?.latitude || 0,
+                longitude: a.location.coordinates?.longitude || 0
+              }
+            },
+            supervisor: {
+              name: a.supervisor.name,
+              contactNumber: a.supervisor.contact_number,
+              employeeId: a.supervisor.employee_id
+            },
+            capacity: {
+              pregnantWomen: a.capacity.pregnant_women,
+              children: a.capacity.children
+            },
+            facilities: a.facilities || [],
+            coverageAreas: a.coverage_areas || [],
+            establishedDate: a.established_date,
+            isActive: a.is_active
+          })));
+          console.log('✅ Anganwadis loaded from MongoDB:', anganwadisData.length);
         }
 
-        // Load workers from server
+        // Load workers
         const workersData = await apiCall('/workers');
-        if (workersData) {
-          setWorkers(workersData);
-          console.log('Workers loaded:', workersData.length);
+        if (Array.isArray(workersData)) {
+          setWorkers(workersData.map(w => ({
+            id: w._id,
+            employeeId: w.employee_id,
+            name: w.name,
+            role: w.role,
+            anganwadiId: w.anganwadi_id,
+            contactNumber: w.contact_number,
+            address: w.address,
+            assignedAreas: w.assigned_areas || [],
+            qualifications: w.qualifications || [],
+            workingHours: {
+              start: w.working_hours?.start || '09:00',
+              end: w.working_hours?.end || '17:00'
+            },
+            emergencyContact: {
+              name: w.emergency_contact?.name || '',
+              relation: w.emergency_contact?.relation || '',
+              contactNumber: w.emergency_contact?.contact_number || ''
+            },
+            joinDate: w.join_date,
+            isActive: w.is_active
+          })));
+          console.log('✅ Workers loaded from MongoDB:', workersData.length);
         }
 
-        // Load bed requests from server
+        // Load bed requests
         const bedRequestsData = await apiCall('/bed-requests');
-        if (bedRequestsData) {
-          setBedRequests(bedRequestsData);
-          console.log('Bed requests loaded:', bedRequestsData.length);
+        if (Array.isArray(bedRequestsData)) {
+          setBedRequests(bedRequestsData.map(br => ({
+            id: br._id,
+            patientId: br.patient_id,
+            requestedBy: br.requested_by,
+            requestDate: br.request_date,
+            urgencyLevel: br.urgency_level,
+            medicalJustification: br.medical_justification,
+            currentCondition: br.current_condition,
+            estimatedStayDuration: br.estimated_stay_duration,
+            specialRequirements: br.special_requirements,
+            status: br.status,
+            reviewedBy: br.reviewed_by,
+            reviewDate: br.review_date,
+            reviewComments: br.review_comments,
+            hospitalReferral: br.hospital_referral
+          })));
+          console.log('✅ Bed requests loaded from MongoDB:', bedRequestsData.length);
         }
 
         // Load notifications for current user role
         if (userRole) {
           const notificationsData = await apiCall(`/notifications/role/${userRole}`);
-          if (notificationsData) {
-            setNotifications(notificationsData);
-            console.log('Notifications loaded:', notificationsData.length);
+          if (Array.isArray(notificationsData)) {
+            setNotifications(notificationsData.map(n => ({
+              id: n._id,
+              userRole: n.user_role,
+              type: n.type,
+              title: n.title,
+              message: n.message,
+              priority: n.priority,
+              actionRequired: n.action_required,
+              read: n.read,
+              date: n.date
+            })));
+            console.log('✅ Notifications loaded from MongoDB:', notificationsData.length);
           }
         }
 
-        // Load visits from server
+        // Load visits
         const visitsData = await apiCall('/visits');
-        if (visitsData) {
-          setVisits(visitsData);
-          console.log('Visits loaded:', visitsData.length);
+        if (Array.isArray(visitsData)) {
+          setVisits(visitsData.map(v => ({
+            id: v._id,
+            patientId: v.patient_id,
+            healthWorkerId: v.health_worker_id,
+            scheduledDate: v.scheduled_date,
+            actualDate: v.actual_date,
+            status: v.status,
+            notes: v.notes
+          })));
+          console.log('✅ Visits loaded from MongoDB:', visitsData.length);
         }
 
-        console.log('All data loaded successfully from server');
+        console.log('🎉 All data successfully loaded from MongoDB via Node.js server');
       } catch (error) {
-        console.error('Failed to load data from server:', error);
-        // Don't use fallback data - force user to fix connection
+        console.error('❌ Failed to load data from MongoDB:', error);
       }
     };
 
-    loadData();
+    loadAllData();
   }, [userRole]);
 
-  // Actions - All data operations go through Node server to database
+  // Actions - All operations go through Node.js server to MongoDB
   const addPatient = async (patient: Omit<Patient, 'id'>) => {
     try {
-      console.log('Sending patient data to server:', patient);
+      console.log('📤 Frontend sending patient data to Node.js server:', patient);
+      
+      // Transform frontend data to server format
+      const serverData = {
+        name: patient.name,
+        aadhaarNumber: patient.aadhaarNumber,
+        age: patient.age,
+        type: patient.type,
+        pregnancyWeek: patient.pregnancyWeek,
+        contactNumber: patient.contactNumber,
+        emergencyContact: patient.emergencyContact,
+        address: patient.address,
+        weight: patient.weight,
+        height: patient.height,
+        bloodPressure: patient.bloodPressure,
+        temperature: patient.temperature,
+        hemoglobin: patient.hemoglobin,
+        nutritionStatus: patient.nutritionStatus,
+        medicalHistory: patient.medicalHistory,
+        symptoms: patient.symptoms,
+        documents: patient.documents,
+        photos: patient.photos,
+        remarks: patient.remarks,
+        riskScore: patient.riskScore,
+        nutritionalDeficiency: patient.nutritionalDeficiency,
+        registeredBy: currentUser?.employeeId
+      };
+
       const response = await apiCall('/patients', {
         method: 'POST',
-        body: JSON.stringify(patient),
+        body: JSON.stringify(serverData),
       });
 
       if (response) {
-        console.log('Patient created successfully:', response);
-        // Reload patients from server to get updated data
+        console.log('✅ Patient successfully saved to MongoDB via Node.js server');
+        // Reload patients from MongoDB
         const updatedPatients = await apiCall('/patients');
-        setPatients(updatedPatients);
+        if (Array.isArray(updatedPatients)) {
+          setPatients(updatedPatients.map(p => ({
+            id: p._id,
+            registrationNumber: p.registration_number,
+            aadhaarNumber: p.aadhaar_number,
+            name: p.name,
+            age: p.age,
+            type: p.type,
+            pregnancyWeek: p.pregnancy_week,
+            contactNumber: p.contact_number,
+            emergencyContact: p.emergency_contact,
+            address: p.address,
+            weight: p.weight,
+            height: p.height,
+            bloodPressure: p.blood_pressure,
+            temperature: p.temperature,
+            hemoglobin: p.hemoglobin,
+            nutritionStatus: p.nutrition_status,
+            medicalHistory: p.medical_history || [],
+            symptoms: p.symptoms || [],
+            documents: p.documents || [],
+            photos: p.photos || [],
+            remarks: p.remarks,
+            riskScore: p.risk_score,
+            nutritionalDeficiency: p.nutritional_deficiency || [],
+            bedId: p.bed_id,
+            lastVisitDate: p.last_visit_date,
+            nextVisitDate: p.next_visit_date,
+            registeredBy: p.registered_by,
+            registrationDate: p.registration_date,
+            admissionDate: p.registration_date,
+            nextVisit: p.next_visit_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          })));
+        }
       }
     } catch (error) {
-      console.error('Failed to add patient:', error);
+      console.error('❌ Failed to add patient to MongoDB:', error);
       throw error;
     }
   };
 
   const updatePatient = async (id: string, updates: Partial<Patient>) => {
     try {
-      console.log('Updating patient on server:', id, updates);
+      console.log('📤 Frontend updating patient in MongoDB via Node.js server:', id, updates);
+      
       const response = await apiCall(`/patients/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
 
       if (response) {
-        console.log('Patient updated successfully:', response);
-        // Reload patients from server
+        console.log('✅ Patient successfully updated in MongoDB');
+        // Reload patients from MongoDB
         const updatedPatients = await apiCall('/patients');
-        setPatients(updatedPatients);
+        if (Array.isArray(updatedPatients)) {
+          setPatients(updatedPatients.map(p => ({
+            id: p._id,
+            registrationNumber: p.registration_number,
+            aadhaarNumber: p.aadhaar_number,
+            name: p.name,
+            age: p.age,
+            type: p.type,
+            pregnancyWeek: p.pregnancy_week,
+            contactNumber: p.contact_number,
+            emergencyContact: p.emergency_contact,
+            address: p.address,
+            weight: p.weight,
+            height: p.height,
+            bloodPressure: p.blood_pressure,
+            temperature: p.temperature,
+            hemoglobin: p.hemoglobin,
+            nutritionStatus: p.nutrition_status,
+            medicalHistory: p.medical_history || [],
+            symptoms: p.symptoms || [],
+            documents: p.documents || [],
+            photos: p.photos || [],
+            remarks: p.remarks,
+            riskScore: p.risk_score,
+            nutritionalDeficiency: p.nutritional_deficiency || [],
+            bedId: p.bed_id,
+            lastVisitDate: p.last_visit_date,
+            nextVisitDate: p.next_visit_date,
+            registeredBy: p.registered_by,
+            registrationDate: p.registration_date,
+            admissionDate: p.registration_date,
+            nextVisit: p.next_visit_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          })));
+        }
       }
     } catch (error) {
-      console.error('Failed to update patient:', error);
+      console.error('❌ Failed to update patient in MongoDB:', error);
       throw error;
     }
   };
 
   const addMedicalRecord = async (record: Omit<MedicalRecord, 'id'>) => {
     try {
-      console.log('Sending medical record to server:', record);
+      console.log('📤 Frontend sending medical record to Node.js server:', record);
+      
       const response = await apiCall('/medical-records', {
         method: 'POST',
         body: JSON.stringify(record),
       });
 
       if (response) {
-        console.log('Medical record created successfully:', response);
-        // Reload medical records from server
+        console.log('✅ Medical record successfully saved to MongoDB');
+        // Reload medical records for this patient
         const updatedRecords = await apiCall(`/medical-records/patient/${record.patientId}`);
-        setMedicalRecords(prev => [
-          ...prev.filter(r => r.patientId !== record.patientId),
-          ...updatedRecords
-        ]);
+        if (Array.isArray(updatedRecords)) {
+          setMedicalRecords(prev => [
+            ...prev.filter(r => r.patientId !== record.patientId),
+            ...updatedRecords.map(mr => ({
+              id: mr._id,
+              patientId: mr.patient_id,
+              date: mr.visit_date,
+              visitType: mr.visit_type,
+              healthWorkerId: mr.health_worker_id,
+              vitals: {
+                weight: mr.weight,
+                height: mr.height,
+                temperature: mr.temperature,
+                bloodPressure: mr.blood_pressure,
+                pulse: mr.pulse,
+                respiratoryRate: mr.respiratory_rate,
+                oxygenSaturation: mr.oxygen_saturation
+              },
+              symptoms: mr.symptoms || [],
+              diagnosis: mr.diagnosis || [],
+              treatment: mr.treatment || [],
+              medications: [], // Would need separate medications table
+              nutritionAssessment: {
+                appetite: mr.appetite,
+                foodIntake: mr.food_intake,
+                supplements: mr.supplements || [],
+                dietPlan: mr.diet_plan
+              },
+              labResults: {
+                hemoglobin: mr.hemoglobin,
+                bloodSugar: mr.blood_sugar,
+                proteinLevel: mr.protein_level
+              },
+              notes: mr.notes,
+              nextVisitDate: mr.next_visit_date,
+              followUpRequired: mr.follow_up_required
+            }))
+          ]);
+        }
       }
     } catch (error) {
-      console.error('Failed to add medical record:', error);
+      console.error('❌ Failed to add medical record to MongoDB:', error);
       throw error;
     }
   };
@@ -735,140 +989,223 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateBed = async (id: string, updates: Partial<Bed>) => {
     try {
-      console.log('Updating bed on server:', id, updates);
+      console.log('📤 Frontend updating bed in MongoDB via Node.js server:', id, updates);
+      
       const response = await apiCall(`/beds/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
 
       if (response) {
-        console.log('Bed updated successfully:', response);
-        // Reload beds from server
+        console.log('✅ Bed successfully updated in MongoDB');
+        // Reload beds from MongoDB
         const updatedBeds = await apiCall('/beds');
-        setBeds(updatedBeds);
+        if (Array.isArray(updatedBeds)) {
+          setBeds(updatedBeds.map(b => ({
+            id: b._id,
+            hospitalId: b.hospital_id,
+            number: b.number,
+            ward: b.ward,
+            status: b.status,
+            patientId: b.patient_id,
+            admissionDate: b.admission_date
+          })));
+        }
       }
     } catch (error) {
-      console.error('Failed to update bed:', error);
+      console.error('❌ Failed to update bed in MongoDB:', error);
       throw error;
     }
   };
 
   const addBedRequest = async (request: Omit<BedRequest, 'id'>) => {
     try {
-      console.log('Sending bed request to server:', request);
+      console.log('📤 Frontend sending bed request to Node.js server:', request);
+      
       const response = await apiCall('/bed-requests', {
         method: 'POST',
         body: JSON.stringify(request),
       });
 
       if (response) {
-        console.log('Bed request created successfully:', response);
-        // Reload bed requests from server
+        console.log('✅ Bed request successfully saved to MongoDB');
+        // Reload bed requests from MongoDB
         const updatedRequests = await apiCall('/bed-requests');
-        setBedRequests(updatedRequests);
+        if (Array.isArray(updatedRequests)) {
+          setBedRequests(updatedRequests.map(br => ({
+            id: br._id,
+            patientId: br.patient_id,
+            requestedBy: br.requested_by,
+            requestDate: br.request_date,
+            urgencyLevel: br.urgency_level,
+            medicalJustification: br.medical_justification,
+            currentCondition: br.current_condition,
+            estimatedStayDuration: br.estimated_stay_duration,
+            specialRequirements: br.special_requirements,
+            status: br.status,
+            reviewedBy: br.reviewed_by,
+            reviewDate: br.review_date,
+            reviewComments: br.review_comments,
+            hospitalReferral: br.hospital_referral
+          })));
+        }
       }
     } catch (error) {
-      console.error('Failed to add bed request:', error);
+      console.error('❌ Failed to add bed request to MongoDB:', error);
       throw error;
     }
   };
 
   const updateBedRequest = async (id: string, updates: Partial<BedRequest>) => {
     try {
-      console.log('Updating bed request on server:', id, updates);
+      console.log('📤 Frontend updating bed request in MongoDB via Node.js server:', id, updates);
+      
       const response = await apiCall(`/bed-requests/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
 
       if (response) {
-        console.log('Bed request updated successfully:', response);
-        // Reload bed requests from server
+        console.log('✅ Bed request successfully updated in MongoDB');
+        // Reload bed requests from MongoDB
         const updatedRequests = await apiCall('/bed-requests');
-        setBedRequests(updatedRequests);
+        if (Array.isArray(updatedRequests)) {
+          setBedRequests(updatedRequests.map(br => ({
+            id: br._id,
+            patientId: br.patient_id,
+            requestedBy: br.requested_by,
+            requestDate: br.request_date,
+            urgencyLevel: br.urgency_level,
+            medicalJustification: br.medical_justification,
+            currentCondition: br.current_condition,
+            estimatedStayDuration: br.estimated_stay_duration,
+            specialRequirements: br.special_requirements,
+            status: br.status,
+            reviewedBy: br.reviewed_by,
+            reviewDate: br.review_date,
+            reviewComments: br.review_comments,
+            hospitalReferral: br.hospital_referral
+          })));
+        }
       }
     } catch (error) {
-      console.error('Failed to update bed request:', error);
+      console.error('❌ Failed to update bed request in MongoDB:', error);
       throw error;
     }
   };
 
   const addVisit = async (visit: Omit<Visit, 'id'>) => {
     try {
-      console.log('Sending visit to server:', visit);
+      console.log('📤 Frontend sending visit to Node.js server:', visit);
+      
       const response = await apiCall('/visits', {
         method: 'POST',
         body: JSON.stringify(visit),
       });
 
       if (response) {
-        console.log('Visit created successfully:', response);
-        // Reload visits from server
+        console.log('✅ Visit successfully saved to MongoDB');
+        // Reload visits from MongoDB
         const updatedVisits = await apiCall('/visits');
-        setVisits(updatedVisits);
+        if (Array.isArray(updatedVisits)) {
+          setVisits(updatedVisits.map(v => ({
+            id: v._id,
+            patientId: v.patient_id,
+            healthWorkerId: v.health_worker_id,
+            scheduledDate: v.scheduled_date,
+            actualDate: v.actual_date,
+            status: v.status,
+            notes: v.notes
+          })));
+        }
       }
     } catch (error) {
-      console.error('Failed to add visit:', error);
+      console.error('❌ Failed to add visit to MongoDB:', error);
       throw error;
     }
   };
 
   const updateVisit = async (id: string, updates: Partial<Visit>) => {
     try {
-      console.log('Updating visit on server:', id, updates);
+      console.log('📤 Frontend updating visit in MongoDB via Node.js server:', id, updates);
+      
       const response = await apiCall(`/visits/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
 
       if (response) {
-        console.log('Visit updated successfully:', response);
-        // Reload visits from server
+        console.log('✅ Visit successfully updated in MongoDB');
+        // Reload visits from MongoDB
         const updatedVisits = await apiCall('/visits');
-        setVisits(updatedVisits);
+        if (Array.isArray(updatedVisits)) {
+          setVisits(updatedVisits.map(v => ({
+            id: v._id,
+            patientId: v.patient_id,
+            healthWorkerId: v.health_worker_id,
+            scheduledDate: v.scheduled_date,
+            actualDate: v.actual_date,
+            status: v.status,
+            notes: v.notes
+          })));
+        }
       }
     } catch (error) {
-      console.error('Failed to update visit:', error);
+      console.error('❌ Failed to update visit in MongoDB:', error);
       throw error;
     }
   };
 
   const markNotificationRead = async (id: string) => {
     try {
-      console.log('Marking notification as read on server:', id);
+      console.log('📤 Frontend marking notification as read in MongoDB via Node.js server:', id);
+      
       const response = await apiCall(`/notifications/${id}/read`, {
         method: 'PUT',
       });
 
       if (response) {
-        console.log('Notification marked as read:', response);
+        console.log('✅ Notification successfully marked as read in MongoDB');
         // Update local state immediately for better UX
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
       }
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+      console.error('❌ Failed to mark notification as read in MongoDB:', error);
       throw error;
     }
   };
 
   const addNotification = async (notification: Omit<Notification, 'id'>) => {
     try {
-      console.log('Sending notification to server:', notification);
+      console.log('📤 Frontend sending notification to Node.js server:', notification);
+      
       const response = await apiCall('/notifications', {
         method: 'POST',
         body: JSON.stringify(notification),
       });
 
       if (response) {
-        console.log('Notification created successfully:', response);
-        // Reload notifications from server
+        console.log('✅ Notification successfully saved to MongoDB');
+        // Reload notifications from MongoDB
         if (userRole) {
           const updatedNotifications = await apiCall(`/notifications/role/${userRole}`);
-          setNotifications(updatedNotifications);
+          if (Array.isArray(updatedNotifications)) {
+            setNotifications(updatedNotifications.map(n => ({
+              id: n._id,
+              userRole: n.user_role,
+              type: n.type,
+              title: n.title,
+              message: n.message,
+              priority: n.priority,
+              actionRequired: n.action_required,
+              read: n.read,
+              date: n.date
+            })));
+          }
         }
       }
     } catch (error) {
-      console.error('Failed to add notification:', error);
+      console.error('❌ Failed to add notification to MongoDB:', error);
       throw error;
     }
   };
@@ -884,80 +1221,188 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addAnganwadi = async (anganwadi: Omit<Anganwadi, 'id'>) => {
     try {
-      console.log('Sending anganwadi to server:', anganwadi);
+      console.log('📤 Frontend sending anganwadi to Node.js server:', anganwadi);
+      
       const response = await apiCall('/anganwadis', {
         method: 'POST',
         body: JSON.stringify(anganwadi),
       });
 
       if (response) {
-        console.log('Anganwadi created successfully:', response);
-        // Reload anganwadis from server
+        console.log('✅ Anganwadi successfully saved to MongoDB');
+        // Reload anganwadis from MongoDB
         const updatedAnganwadis = await apiCall('/anganwadis');
-        setAnganwadis(updatedAnganwadis);
+        if (Array.isArray(updatedAnganwadis)) {
+          setAnganwadis(updatedAnganwadis.map(a => ({
+            id: a._id,
+            name: a.name,
+            code: a.code,
+            location: {
+              area: a.location.area,
+              district: a.location.district,
+              state: a.location.state,
+              pincode: a.location.pincode,
+              coordinates: {
+                latitude: a.location.coordinates?.latitude || 0,
+                longitude: a.location.coordinates?.longitude || 0
+              }
+            },
+            supervisor: {
+              name: a.supervisor.name,
+              contactNumber: a.supervisor.contact_number,
+              employeeId: a.supervisor.employee_id
+            },
+            capacity: {
+              pregnantWomen: a.capacity.pregnant_women,
+              children: a.capacity.children
+            },
+            facilities: a.facilities || [],
+            coverageAreas: a.coverage_areas || [],
+            establishedDate: a.established_date,
+            isActive: a.is_active
+          })));
+        }
       }
     } catch (error) {
-      console.error('Failed to add anganwadi:', error);
+      console.error('❌ Failed to add anganwadi to MongoDB:', error);
       throw error;
     }
   };
 
   const updateAnganwadi = async (id: string, updates: Partial<Anganwadi>) => {
     try {
-      console.log('Updating anganwadi on server:', id, updates);
+      console.log('📤 Frontend updating anganwadi in MongoDB via Node.js server:', id, updates);
+      
       const response = await apiCall(`/anganwadis/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
 
       if (response) {
-        console.log('Anganwadi updated successfully:', response);
-        // Reload anganwadis from server
+        console.log('✅ Anganwadi successfully updated in MongoDB');
+        // Reload anganwadis from MongoDB
         const updatedAnganwadis = await apiCall('/anganwadis');
-        setAnganwadis(updatedAnganwadis);
+        if (Array.isArray(updatedAnganwadis)) {
+          setAnganwadis(updatedAnganwadis.map(a => ({
+            id: a._id,
+            name: a.name,
+            code: a.code,
+            location: {
+              area: a.location.area,
+              district: a.location.district,
+              state: a.location.state,
+              pincode: a.location.pincode,
+              coordinates: {
+                latitude: a.location.coordinates?.latitude || 0,
+                longitude: a.location.coordinates?.longitude || 0
+              }
+            },
+            supervisor: {
+              name: a.supervisor.name,
+              contactNumber: a.supervisor.contact_number,
+              employeeId: a.supervisor.employee_id
+            },
+            capacity: {
+              pregnantWomen: a.capacity.pregnant_women,
+              children: a.capacity.children
+            },
+            facilities: a.facilities || [],
+            coverageAreas: a.coverage_areas || [],
+            establishedDate: a.established_date,
+            isActive: a.is_active
+          })));
+        }
       }
     } catch (error) {
-      console.error('Failed to update anganwadi:', error);
+      console.error('❌ Failed to update anganwadi in MongoDB:', error);
       throw error;
     }
   };
 
   const addWorker = async (worker: Omit<Worker, 'id'>) => {
     try {
-      console.log('Sending worker to server:', worker);
+      console.log('📤 Frontend sending worker to Node.js server:', worker);
+      
       const response = await apiCall('/workers', {
         method: 'POST',
         body: JSON.stringify(worker),
       });
 
       if (response) {
-        console.log('Worker created successfully:', response);
-        // Reload workers from server
+        console.log('✅ Worker successfully saved to MongoDB');
+        // Reload workers from MongoDB
         const updatedWorkers = await apiCall('/workers');
-        setWorkers(updatedWorkers);
+        if (Array.isArray(updatedWorkers)) {
+          setWorkers(updatedWorkers.map(w => ({
+            id: w._id,
+            employeeId: w.employee_id,
+            name: w.name,
+            role: w.role,
+            anganwadiId: w.anganwadi_id,
+            contactNumber: w.contact_number,
+            address: w.address,
+            assignedAreas: w.assigned_areas || [],
+            qualifications: w.qualifications || [],
+            workingHours: {
+              start: w.working_hours?.start || '09:00',
+              end: w.working_hours?.end || '17:00'
+            },
+            emergencyContact: {
+              name: w.emergency_contact?.name || '',
+              relation: w.emergency_contact?.relation || '',
+              contactNumber: w.emergency_contact?.contact_number || ''
+            },
+            joinDate: w.join_date,
+            isActive: w.is_active
+          })));
+        }
       }
     } catch (error) {
-      console.error('Failed to add worker:', error);
+      console.error('❌ Failed to add worker to MongoDB:', error);
       throw error;
     }
   };
 
   const updateWorker = async (id: string, updates: Partial<Worker>) => {
     try {
-      console.log('Updating worker on server:', id, updates);
+      console.log('📤 Frontend updating worker in MongoDB via Node.js server:', id, updates);
+      
       const response = await apiCall(`/workers/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
 
       if (response) {
-        console.log('Worker updated successfully:', response);
-        // Reload workers from server
+        console.log('✅ Worker successfully updated in MongoDB');
+        // Reload workers from MongoDB
         const updatedWorkers = await apiCall('/workers');
-        setWorkers(updatedWorkers);
+        if (Array.isArray(updatedWorkers)) {
+          setWorkers(updatedWorkers.map(w => ({
+            id: w._id,
+            employeeId: w.employee_id,
+            name: w.name,
+            role: w.role,
+            anganwadiId: w.anganwadi_id,
+            contactNumber: w.contact_number,
+            address: w.address,
+            assignedAreas: w.assigned_areas || [],
+            qualifications: w.qualifications || [],
+            workingHours: {
+              start: w.working_hours?.start || '09:00',
+              end: w.working_hours?.end || '17:00'
+            },
+            emergencyContact: {
+              name: w.emergency_contact?.name || '',
+              relation: w.emergency_contact?.relation || '',
+              contactNumber: w.emergency_contact?.contact_number || ''
+            },
+            joinDate: w.join_date,
+            isActive: w.is_active
+          })));
+        }
       }
     } catch (error) {
-      console.error('Failed to update worker:', error);
+      console.error('❌ Failed to update worker in MongoDB:', error);
       throw error;
     }
   };
