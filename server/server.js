@@ -1,54 +1,97 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
 require('dotenv').config();
+
+const { connectMongoDB } = require('./database/mongodb');
+const authRoutes = require('./routes/auth');
+const patientRoutes = require('./routes/patients');
+const medicalRecordRoutes = require('./routes/medicalRecords');
+const bedRoutes = require('./routes/beds');
+const visitRoutes = require('./routes/visits');
+const notificationRoutes = require('./routes/notifications');
+const workerRoutes = require('./routes/workers');
+const anganwadiRoutes = require('./routes/anganwadis');
+const bedRequestRoutes = require('./routes/bedRequests');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// Middleware
+// Security middleware
+app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: FRONTEND_URL,
   credentials: true
 }));
-app.use(express.json());
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nrc_management', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('✅ Connected to MongoDB successfully');
-  console.log('📊 Database: nrc_management');
-})
-.catch((error) => {
-  console.error('❌ MongoDB connection error:', error);
-  process.exit(1);
-});
+// Logging middleware
+app.use(morgan('combined'));
 
-// Basic route
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'NRC Management System API Server',
-    status: 'Running',
-    database: 'MongoDB Connected',
-    timestamp: new Date().toISOString()
-  });
-});
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 
-// API Routes (will be added as needed)
+// Initialize MongoDB connection
+const initializeDatabase = async () => {
+  try {
+    console.log('🔄 Initializing NRC Management MongoDB Database...');
+    await connectMongoDB();
+    console.log('✅ MongoDB database initialization completed successfully');
+    console.log('📊 Sample data loaded for testing');
+  } catch (error) {
+    console.error('❌ MongoDB database initialization failed:', error);
+    process.exit(1);
+  }
+};
+
+// Initialize database
+initializeDatabase();
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/patients', patientRoutes);
+app.use('/api/medical-records', medicalRecordRoutes);
+app.use('/api/beds', bedRoutes);
+app.use('/api/visits', visitRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/workers', workerRoutes);
+app.use('/api/anganwadis', anganwadiRoutes);
+app.use('/api/bed-requests', bedRequestRoutes);
+
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
-    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    version: '3.0.0',
+    database: 'MongoDB Connected & Initialized',
+    environment: NODE_ENV
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL}`);
-  console.log(`📊 MongoDB URI: ${process.env.MONGODB_URI}`);
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ 
+    error: 'Something went wrong!',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  });
 });
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 NRC Management Server running on port ${PORT}`);
+  console.log(`🌍 Environment: ${NODE_ENV}`);
+  console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
+  console.log(`💾 Database: MongoDB with Full Schema (Persistent Storage)`);
+  console.log(`📡 API Endpoints: /api/patients, /api/anganwadis, /api/workers, /api/beds, /api/notifications`);
+});
+
+module.exports = app;
