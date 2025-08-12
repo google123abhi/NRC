@@ -1,99 +1,153 @@
-# NRC Management System - Database Integration
+# NRC Management System - MongoDB Integration
 
-## 🗄️ Database Storage & Integration
+## 🗄️ MongoDB Database Integration
 
 ### Current Data Storage
-Currently, all data is stored in **React Context (in-memory)**, which means:
+All data is now stored in **MongoDB** with Node.js backend, which provides:
+- ✅ Persistent data storage
 - ✅ Fast access and real-time updates
-- ❌ Data resets on page refresh
-- ❌ No persistence between sessions
+- ✅ Data survives page refresh and server restart
+- ✅ Scalable NoSQL database
 
-### SQL Database Integration
+### MongoDB Database Integration
 
-I've created a complete SQL database schema and integration layer for persistent data storage.
+Complete MongoDB integration with Mongoose ODM for persistent data storage.
 
-## 📊 Database Schema
+## 📊 MongoDB Collections
 
-### Core Tables
+### Core Collections
 - **users** - Authentication and user management
 - **anganwadi_centers** - Anganwadi center information
 - **workers** - Worker profiles and assignments
 - **patients** - Patient registration and basic info
 - **medical_records** - Complete medical history
-- **medications** - Prescribed medications
 - **beds** - Hospital bed management
 - **bed_requests** - Bed allocation requests
 - **visits** - Visit scheduling and tracking
-- **missed_visit_tickets** - Automated ticketing system
-- **treatment_trackers** - Hospital treatment tracking
-- **survey_reports** - Nutrition surveys
-- **ai_predictions** - AI health predictions
 - **notifications** - System notifications
+- **hospitals** - Hospital information
 
-### Database Features
-- ✅ **Complete relationships** between all entities
-- ✅ **Foreign key constraints** for data integrity
-- ✅ **Indexes** for optimal performance
-- ✅ **JSONB fields** for flexible data storage
+### MongoDB Features
+- ✅ **Document-based storage** with flexible schemas
+- ✅ **ObjectId references** for relationships
+- ✅ **Mongoose validation** for data integrity
+- ✅ **JSON native support** for complex data structures
 - ✅ **Audit trails** with created_at/updated_at
-- ✅ **Soft deletes** with is_active flags
+- ✅ **Indexing** for optimal performance
 
-## 🔧 Integration Options
+## 🔧 Setup Instructions
 
-### Option 1: PostgreSQL (Recommended)
+### Step 1: Install MongoDB
+
+**Windows:**
 ```bash
-# Install PostgreSQL
-npm install pg @types/pg
-
-# Create database
-createdb nrc_management
-
-# Run schema
-psql -d nrc_management -f database/schema.sql
+# Download from: https://www.mongodb.com/try/download/community
+# Run installer and follow setup wizard
 ```
 
-### Option 2: MySQL
+**macOS:**
 ```bash
-# Install MySQL
-npm install mysql2
-
-# Create database and run schema
-mysql -u root -p < database/schema.sql
+brew tap mongodb/brew
+brew install mongodb-community
 ```
 
-### Option 3: SQLite (Development)
+**Linux:**
 ```bash
-# Install SQLite
-npm install sqlite3
-
-# Lightweight option for development
+sudo apt-get update
+sudo apt-get install -y mongodb
 ```
 
-## 🚀 Implementation Steps
+### Step 2: Start MongoDB Service
 
-### 1. Set up Database
+**Windows:**
 ```bash
-# Copy environment variables
-cp .env.example .env
-
-# Edit .env with your database credentials
-REACT_APP_DB_HOST=localhost
-REACT_APP_DB_PORT=5432
-REACT_APP_DB_NAME=nrc_management
-REACT_APP_DB_USER=your_username
-REACT_APP_DB_PASSWORD=your_password
+net start MongoDB
 ```
 
-### 2. Install Dependencies
+**macOS:**
 ```bash
-# For PostgreSQL
-npm install pg @types/pg
+brew services start mongodb/brew/mongodb-community
+```
 
-# For connection pooling
-npm install pg-pool
+**Linux:**
+```bash
+sudo systemctl start mongod
+sudo systemctl enable mongod
+```
 
-# For migrations (optional)
-npm install knex
+### Step 3: Install Dependencies & Start Server
+```bash
+# Navigate to server directory
+cd server
+
+# Install dependencies
+npm install
+
+# Start the server
+npm run dev
+```
+
+### Step 4: Start Frontend
+```bash
+# In project root directory
+npm install
+npm run dev
+```
+
+## 🚀 Environment Configuration
+
+### Server Environment (.env)
+```bash
+PORT=3001
+NODE_ENV=development
+MONGODB_URI=mongodb://localhost:27017/nrc_management
+JWT_SECRET=your-super-secret-jwt-key
+FRONTEND_URL=http://localhost:5173
+```
+
+## 🔄 Data Flow
+
+```
+Frontend Form → Node.js API → MongoDB → Persistent Storage
+```
+
+### API Endpoints
+```bash
+GET/POST /api/patients
+GET/POST /api/anganwadis  
+GET/POST /api/workers
+GET/POST /api/beds
+GET/POST /api/notifications
+GET/POST /api/visits
+GET/POST /api/bed-requests
+GET/POST /api/medical-records
+```
+
+## 🎯 Key Features
+
+- ✅ **No data loss** - Everything persists in MongoDB
+- ✅ **Real-time updates** - Data syncs across sessions
+- ✅ **Proper relationships** - ObjectId references
+- ✅ **Schema validation** - Mongoose ensures data integrity
+- ✅ **Sample data included** - Ready for immediate testing
+- ✅ **Error handling** - Comprehensive error management
+
+## 🔍 Troubleshooting
+
+### "Failed to fetch" Error
+1. Ensure MongoDB is running
+2. Check server is started (`npm run dev` in server directory)
+3. Verify CORS settings in server.js
+4. Check network connectivity
+
+### MongoDB Connection Issues
+1. Verify MongoDB service is running
+2. Check MONGODB_URI in .env file
+3. Ensure database permissions
+4. Check firewall settings
+
+Your data will now **permanently persist** in MongoDB and never vanish on refresh or restart!
+```
 ```
 
 ### 3. Update AppContext
