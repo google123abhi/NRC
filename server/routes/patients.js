@@ -11,11 +11,43 @@ router.get('/', async (req, res) => {
     console.log('📊 Fetching all patients from MongoDB...');
     
     const patients = await Patient.find({ is_active: true })
-      .populate('bed_id')
       .sort({ created_at: -1 });
     
+    // Transform to frontend format
+    const transformedPatients = patients.map(patient => ({
+      _id: patient._id,
+      registration_number: patient.registration_number,
+      aadhaar_number: patient.aadhaar_number,
+      name: patient.name,
+      age: patient.age,
+      type: patient.type,
+      pregnancy_week: patient.pregnancy_week,
+      contact_number: patient.contact_number,
+      emergency_contact: patient.emergency_contact,
+      address: patient.address,
+      weight: patient.weight,
+      height: patient.height,
+      blood_pressure: patient.blood_pressure,
+      temperature: patient.temperature,
+      hemoglobin: patient.hemoglobin,
+      nutrition_status: patient.nutrition_status,
+      medical_history: patient.medical_history,
+      symptoms: patient.symptoms,
+      documents: patient.documents,
+      photos: patient.photos,
+      remarks: patient.remarks,
+      risk_score: patient.risk_score,
+      nutritional_deficiency: patient.nutritional_deficiency,
+      bed_id: patient.bed_id,
+      last_visit_date: patient.last_visit_date,
+      next_visit_date: patient.next_visit_date,
+      registered_by: patient.registered_by,
+      registration_date: patient.registration_date,
+      is_active: patient.is_active
+    }));
+    
     console.log(`✅ Successfully retrieved ${patients.length} patients from MongoDB`);
-    res.json(patients);
+    res.json(transformedPatients);
   } catch (err) {
     console.error('❌ Error fetching patients:', err);
     res.status(500).json({ error: err.message });

@@ -579,7 +579,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // API Helper function - All data goes through Node.js server to MongoDB
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     try {
-      console.log(`🌐 Frontend API Call: ${endpoint}`);
+      console.log(`🌐 Frontend API Call: ${API_BASE_URL}${endpoint}`);
       console.log('📤 Request data:', options.body ? JSON.parse(options.body as string) : 'No body');
       
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -591,7 +591,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       if (!response.ok) {
-        throw new Error(`API call failed: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`❌ API Error Response:`, errorText);
+        throw new Error(`API call failed: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -610,174 +612,186 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.log('🔄 Loading all data from MongoDB via Node.js server...');
         
         // Load patients
-        const patientsData = await apiCall('/patients');
-        if (Array.isArray(patientsData)) {
-          setPatients(patientsData.map(p => ({
-            id: p._id,
-            registrationNumber: p.registration_number,
-            aadhaarNumber: p.aadhaar_number,
-            name: p.name,
-            age: p.age,
-            type: p.type,
-            pregnancyWeek: p.pregnancy_week,
-            contactNumber: p.contact_number,
-            emergencyContact: p.emergency_contact,
-            address: p.address,
-            weight: p.weight,
-            height: p.height,
-            bloodPressure: p.blood_pressure,
-            temperature: p.temperature,
-            hemoglobin: p.hemoglobin,
-            nutritionStatus: p.nutrition_status,
-            medicalHistory: p.medical_history || [],
-            symptoms: p.symptoms || [],
-            documents: p.documents || [],
-            photos: p.photos || [],
-            remarks: p.remarks,
-            riskScore: p.risk_score,
-            nutritionalDeficiency: p.nutritional_deficiency || [],
-            bedId: p.bed_id,
-            lastVisitDate: p.last_visit_date,
-            nextVisitDate: p.next_visit_date,
-            registeredBy: p.registered_by,
-            registrationDate: p.registration_date,
-            admissionDate: p.registration_date,
-            nextVisit: p.next_visit_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-          })));
-          console.log('✅ Patients loaded from MongoDB:', patientsData.length);
+        try {
+          const patientsData = await apiCall('/patients');
+          if (Array.isArray(patientsData)) {
+            setPatients(patientsData.map(p => ({
+              id: p._id,
+              registrationNumber: p.registration_number,
+              aadhaarNumber: p.aadhaar_number,
+              name: p.name,
+              age: p.age,
+              type: p.type,
+              pregnancyWeek: p.pregnancy_week,
+              contactNumber: p.contact_number,
+              emergencyContact: p.emergency_contact,
+              address: p.address,
+              weight: p.weight,
+              height: p.height,
+              bloodPressure: p.blood_pressure,
+              temperature: p.temperature,
+              hemoglobin: p.hemoglobin,
+              nutritionStatus: p.nutrition_status,
+              medicalHistory: p.medical_history || [],
+              symptoms: p.symptoms || [],
+              documents: p.documents || [],
+              photos: p.photos || [],
+              remarks: p.remarks,
+              riskScore: p.risk_score,
+              nutritionalDeficiency: p.nutritional_deficiency || [],
+              bedId: p.bed_id,
+              lastVisitDate: p.last_visit_date,
+              nextVisitDate: p.next_visit_date,
+              registeredBy: p.registered_by,
+              registrationDate: p.registration_date,
+              admissionDate: p.registration_date,
+              nextVisit: p.next_visit_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            })));
+            console.log('✅ Patients loaded from MongoDB:', patientsData.length);
+          }
+        } catch (error) {
+          console.error('❌ Failed to load patients:', error);
         }
 
         // Load beds
-        const bedsData = await apiCall('/beds');
-        if (Array.isArray(bedsData)) {
-          setBeds(bedsData.map(b => ({
-            id: b._id,
-            hospitalId: b.hospital_id,
-            number: b.number,
-            ward: b.ward,
-            status: b.status,
-            patientId: b.patient_id,
-            admissionDate: b.admission_date
-          })));
-          console.log('✅ Beds loaded from MongoDB:', bedsData.length);
+        try {
+          const bedsData = await apiCall('/beds');
+          if (Array.isArray(bedsData)) {
+            setBeds(bedsData.map(b => ({
+              id: b.id || b._id,
+              hospitalId: b.hospitalId || b.hospital_id,
+              number: b.number,
+              ward: b.ward,
+              status: b.status,
+              patientId: b.patientId || b.patient_id,
+              admissionDate: b.admissionDate || b.admission_date
+            })));
+            console.log('✅ Beds loaded from MongoDB:', bedsData.length);
+          }
+        } catch (error) {
+          console.error('❌ Failed to load beds:', error);
         }
 
         // Load anganwadis
-        const anganwadisData = await apiCall('/anganwadis');
-        if (Array.isArray(anganwadisData)) {
-          setAnganwadis(anganwadisData.map(a => ({
-            id: a._id,
-            name: a.name,
-            code: a.code,
-            location: {
-              area: a.location.area,
-              district: a.location.district,
-              state: a.location.state,
-              pincode: a.location.pincode,
-              coordinates: {
-                latitude: a.location.coordinates?.latitude || 0,
-                longitude: a.location.coordinates?.longitude || 0
-              }
-            },
-            supervisor: {
-              name: a.supervisor.name,
-              contactNumber: a.supervisor.contact_number,
-              employeeId: a.supervisor.employee_id
-            },
-            capacity: {
-              pregnantWomen: a.capacity.pregnant_women,
-              children: a.capacity.children
-            },
-            facilities: a.facilities || [],
-            coverageAreas: a.coverage_areas || [],
-            establishedDate: a.established_date,
-            isActive: a.is_active
-          })));
-          console.log('✅ Anganwadis loaded from MongoDB:', anganwadisData.length);
+        try {
+          const anganwadisData = await apiCall('/anganwadis');
+          if (Array.isArray(anganwadisData)) {
+            setAnganwadis(anganwadisData.map(a => ({
+              id: a.id || a._id,
+              name: a.name,
+              code: a.code,
+              location: a.location,
+              supervisor: a.supervisor,
+              capacity: a.capacity,
+              facilities: a.facilities || [],
+              coverageAreas: a.coverageAreas || a.coverage_areas || [],
+              establishedDate: a.establishedDate || a.established_date,
+              isActive: a.isActive !== undefined ? a.isActive : a.is_active
+            })));
+            console.log('✅ Anganwadis loaded from MongoDB:', anganwadisData.length);
+          }
+        } catch (error) {
+          console.error('❌ Failed to load anganwadis:', error);
         }
 
         // Load workers
-        const workersData = await apiCall('/workers');
-        if (Array.isArray(workersData)) {
-          setWorkers(workersData.map(w => ({
-            id: w._id,
-            employeeId: w.employee_id,
-            name: w.name,
-            role: w.role,
-            anganwadiId: w.anganwadi_id,
-            contactNumber: w.contact_number,
-            address: w.address,
-            assignedAreas: w.assigned_areas || [],
-            qualifications: w.qualifications || [],
-            workingHours: {
-              start: w.working_hours?.start || '09:00',
-              end: w.working_hours?.end || '17:00'
-            },
-            emergencyContact: {
-              name: w.emergency_contact?.name || '',
-              relation: w.emergency_contact?.relation || '',
-              contactNumber: w.emergency_contact?.contact_number || ''
-            },
-            joinDate: w.join_date,
-            isActive: w.is_active
-          })));
-          console.log('✅ Workers loaded from MongoDB:', workersData.length);
+        try {
+          const workersData = await apiCall('/workers');
+          if (Array.isArray(workersData)) {
+            setWorkers(workersData.map(w => ({
+              id: w.id || w._id,
+              employeeId: w.employeeId || w.employee_id,
+              name: w.name,
+              role: w.role,
+              anganwadiId: w.anganwadiId || w.anganwadi_id,
+              contactNumber: w.contactNumber || w.contact_number,
+              address: w.address,
+              assignedAreas: w.assignedAreas || w.assigned_areas || [],
+              qualifications: w.qualifications || [],
+              workingHours: w.workingHours || {
+                start: '09:00',
+                end: '17:00'
+              },
+              emergencyContact: w.emergencyContact || {
+                name: '',
+                relation: '',
+                contactNumber: ''
+              },
+              joinDate: w.joinDate || w.join_date,
+              isActive: w.isActive !== undefined ? w.isActive : w.is_active
+            })));
+            console.log('✅ Workers loaded from MongoDB:', workersData.length);
+          }
+        } catch (error) {
+          console.error('❌ Failed to load workers:', error);
         }
 
         // Load bed requests
-        const bedRequestsData = await apiCall('/bed-requests');
-        if (Array.isArray(bedRequestsData)) {
-          setBedRequests(bedRequestsData.map(br => ({
-            id: br._id,
-            patientId: br.patient_id,
-            requestedBy: br.requested_by,
-            requestDate: br.request_date,
-            urgencyLevel: br.urgency_level,
-            medicalJustification: br.medical_justification,
-            currentCondition: br.current_condition,
-            estimatedStayDuration: br.estimated_stay_duration,
-            specialRequirements: br.special_requirements,
-            status: br.status,
-            reviewedBy: br.reviewed_by,
-            reviewDate: br.review_date,
-            reviewComments: br.review_comments,
-            hospitalReferral: br.hospital_referral
-          })));
-          console.log('✅ Bed requests loaded from MongoDB:', bedRequestsData.length);
+        try {
+          const bedRequestsData = await apiCall('/bed-requests');
+          if (Array.isArray(bedRequestsData)) {
+            setBedRequests(bedRequestsData.map(br => ({
+              id: br.id || br._id,
+              patientId: br.patientId || br.patient_id,
+              requestedBy: br.requestedBy || br.requested_by,
+              requestDate: br.requestDate || br.request_date,
+              urgencyLevel: br.urgencyLevel || br.urgency_level,
+              medicalJustification: br.medicalJustification || br.medical_justification,
+              currentCondition: br.currentCondition || br.current_condition,
+              estimatedStayDuration: br.estimatedStayDuration || br.estimated_stay_duration,
+              specialRequirements: br.specialRequirements || br.special_requirements,
+              status: br.status,
+              reviewedBy: br.reviewedBy || br.reviewed_by,
+              reviewDate: br.reviewDate || br.review_date,
+              reviewComments: br.reviewComments || br.review_comments,
+              hospitalReferral: br.hospitalReferral || br.hospital_referral
+            })));
+            console.log('✅ Bed requests loaded from MongoDB:', bedRequestsData.length);
+          }
+        } catch (error) {
+          console.error('❌ Failed to load bed requests:', error);
         }
 
         // Load notifications for current user role
         if (userRole) {
-          const notificationsData = await apiCall(`/notifications/role/${userRole}`);
-          if (Array.isArray(notificationsData)) {
-            setNotifications(notificationsData.map(n => ({
-              id: n._id,
-              userRole: n.user_role,
-              type: n.type,
-              title: n.title,
-              message: n.message,
-              priority: n.priority,
-              actionRequired: n.action_required,
-              read: n.read,
-              date: n.date
-            })));
-            console.log('✅ Notifications loaded from MongoDB:', notificationsData.length);
+          try {
+            const notificationsData = await apiCall(`/notifications/role/${userRole}`);
+            if (Array.isArray(notificationsData)) {
+              setNotifications(notificationsData.map(n => ({
+                id: n.id || n._id,
+                userRole: n.userRole || n.user_role,
+                type: n.type,
+                title: n.title,
+                message: n.message,
+                priority: n.priority,
+                actionRequired: n.actionRequired !== undefined ? n.actionRequired : n.action_required,
+                read: n.read,
+                date: n.date
+              })));
+              console.log('✅ Notifications loaded from MongoDB:', notificationsData.length);
+            }
+          } catch (error) {
+            console.error('❌ Failed to load notifications:', error);
           }
         }
 
         // Load visits
-        const visitsData = await apiCall('/visits');
-        if (Array.isArray(visitsData)) {
-          setVisits(visitsData.map(v => ({
-            id: v._id,
-            patientId: v.patient_id,
-            healthWorkerId: v.health_worker_id,
-            scheduledDate: v.scheduled_date,
-            actualDate: v.actual_date,
-            status: v.status,
-            notes: v.notes
-          })));
-          console.log('✅ Visits loaded from MongoDB:', visitsData.length);
+        try {
+          const visitsData = await apiCall('/visits');
+          if (Array.isArray(visitsData)) {
+            setVisits(visitsData.map(v => ({
+              id: v.id || v._id,
+              patientId: v.patientId || v.patient_id,
+              healthWorkerId: v.healthWorkerId || v.health_worker_id,
+              scheduledDate: v.scheduledDate || v.scheduled_date,
+              actualDate: v.actualDate || v.actual_date,
+              status: v.status,
+              notes: v.notes
+            })));
+            console.log('✅ Visits loaded from MongoDB:', visitsData.length);
+          }
+        } catch (error) {
+          console.error('❌ Failed to load visits:', error);
         }
 
         console.log('🎉 All data successfully loaded from MongoDB via Node.js server');
@@ -786,7 +800,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     };
 
-    loadAllData();
+    if (userRole) {
+      loadAllData();
+    }
   }, [userRole]);
 
   // Actions - All operations go through Node.js server to MongoDB
@@ -827,46 +843,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (response) {
         console.log('✅ Patient successfully saved to MongoDB via Node.js server');
-        // Reload patients from MongoDB
-        const updatedPatients = await apiCall('/patients');
-        if (Array.isArray(updatedPatients)) {
-          setPatients(updatedPatients.map(p => ({
-            id: p._id,
-            registrationNumber: p.registration_number,
-            aadhaarNumber: p.aadhaar_number,
-            name: p.name,
-            age: p.age,
-            type: p.type,
-            pregnancyWeek: p.pregnancy_week,
-            contactNumber: p.contact_number,
-            emergencyContact: p.emergency_contact,
-            address: p.address,
-            weight: p.weight,
-            height: p.height,
-            bloodPressure: p.blood_pressure,
-            temperature: p.temperature,
-            hemoglobin: p.hemoglobin,
-            nutritionStatus: p.nutrition_status,
-            medicalHistory: p.medical_history || [],
-            symptoms: p.symptoms || [],
-            documents: p.documents || [],
-            photos: p.photos || [],
-            remarks: p.remarks,
-            riskScore: p.risk_score,
-            nutritionalDeficiency: p.nutritional_deficiency || [],
-            bedId: p.bed_id,
-            lastVisitDate: p.last_visit_date,
-            nextVisitDate: p.next_visit_date,
-            registeredBy: p.registered_by,
-            registrationDate: p.registration_date,
-            admissionDate: p.registration_date,
-            nextVisit: p.next_visit_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-          })));
-        }
+        // Reload patients from MongoDB immediately
+        await loadPatientsFromServer();
       }
     } catch (error) {
       console.error('❌ Failed to add patient to MongoDB:', error);
       throw error;
+    }
+  };
+
+  // Helper function to reload patients
+  const loadPatientsFromServer = async () => {
+    try {
+      const patientsData = await apiCall('/patients');
+      if (Array.isArray(patientsData)) {
+        setPatients(patientsData.map(p => ({
+          id: p._id,
+          registrationNumber: p.registration_number,
+          aadhaarNumber: p.aadhaar_number,
+          name: p.name,
+          age: p.age,
+          type: p.type,
+          pregnancyWeek: p.pregnancy_week,
+          contactNumber: p.contact_number,
+          emergencyContact: p.emergency_contact,
+          address: p.address,
+          weight: p.weight,
+          height: p.height,
+          bloodPressure: p.blood_pressure,
+          temperature: p.temperature,
+          hemoglobin: p.hemoglobin,
+          nutritionStatus: p.nutrition_status,
+          medicalHistory: p.medical_history || [],
+          symptoms: p.symptoms || [],
+          documents: p.documents || [],
+          photos: p.photos || [],
+          remarks: p.remarks,
+          riskScore: p.risk_score,
+          nutritionalDeficiency: p.nutritional_deficiency || [],
+          bedId: p.bed_id,
+          lastVisitDate: p.last_visit_date,
+          nextVisitDate: p.next_visit_date,
+          registeredBy: p.registered_by,
+          registrationDate: p.registration_date,
+          admissionDate: p.registration_date,
+          nextVisit: p.next_visit_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        })));
+        console.log('✅ Patients reloaded from MongoDB:', patientsData.length);
+      }
+    } catch (error) {
+      console.error('❌ Failed to reload patients:', error);
     }
   };
 
@@ -881,42 +907,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (response) {
         console.log('✅ Patient successfully updated in MongoDB');
-        // Reload patients from MongoDB
-        const updatedPatients = await apiCall('/patients');
-        if (Array.isArray(updatedPatients)) {
-          setPatients(updatedPatients.map(p => ({
-            id: p._id,
-            registrationNumber: p.registration_number,
-            aadhaarNumber: p.aadhaar_number,
-            name: p.name,
-            age: p.age,
-            type: p.type,
-            pregnancyWeek: p.pregnancy_week,
-            contactNumber: p.contact_number,
-            emergencyContact: p.emergency_contact,
-            address: p.address,
-            weight: p.weight,
-            height: p.height,
-            bloodPressure: p.blood_pressure,
-            temperature: p.temperature,
-            hemoglobin: p.hemoglobin,
-            nutritionStatus: p.nutrition_status,
-            medicalHistory: p.medical_history || [],
-            symptoms: p.symptoms || [],
-            documents: p.documents || [],
-            photos: p.photos || [],
-            remarks: p.remarks,
-            riskScore: p.risk_score,
-            nutritionalDeficiency: p.nutritional_deficiency || [],
-            bedId: p.bed_id,
-            lastVisitDate: p.last_visit_date,
-            nextVisitDate: p.next_visit_date,
-            registeredBy: p.registered_by,
-            registrationDate: p.registration_date,
-            admissionDate: p.registration_date,
-            nextVisit: p.next_visit_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-          })));
-        }
+        await loadPatientsFromServer();
       }
     } catch (error) {
       console.error('❌ Failed to update patient in MongoDB:', error);
