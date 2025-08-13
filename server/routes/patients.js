@@ -1,75 +1,58 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const Patient = require('../models/Patient');
-const Notification = require('../models/Notification');
+const { pool } = require('../config/database');
 
 const router = express.Router();
 
 // Get all patients
 router.get('/', async (req, res) => {
   try {
-    console.log('📊 Fetching all patients from MongoDB...');
+    console.log('📊 Fetching all patients from MySQL database...');
     
-    const patients = await Patient.find({ is_active: true })
-      .sort({ created_at: -1 });
+    const [rows] = await pool.execute(`
+      SELECT * FROM patients 
+      WHERE is_active = TRUE 
+      ORDER BY created_at DESC
+    `);
     
-    // Transform to frontend format
-    const transformedPatients = patients.map(patient => ({
-      _id: patient._id,
-      registration_number: patient.registration_number,
-      aadhaar_number: patient.aadhaar_number,
+    // Transform MySQL data to frontend format
+    const transformedPatients = rows.map(patient => ({
+      id: patient.id,
+      registrationNumber: patient.registration_number,
+      aadhaarNumber: patient.aadhaar_number,
       name: patient.name,
       age: patient.age,
       type: patient.type,
-      pregnancy_week: patient.pregnancy_week,
-      contact_number: patient.contact_number,
-      emergency_contact: patient.emergency_contact,
+      pregnancyWeek: patient.pregnancy_week,
+      contactNumber: patient.contact_number,
+      emergencyContact: patient.emergency_contact,
       address: patient.address,
-      weight: patient.weight,
-      height: patient.height,
-      blood_pressure: patient.blood_pressure,
-      temperature: patient.temperature,
-      hemoglobin: patient.hemoglobin,
-      nutrition_status: patient.nutrition_status,
-      medical_history: patient.medical_history,
-      symptoms: patient.symptoms,
-      documents: patient.documents,
-      photos: patient.photos,
+      weight: parseFloat(patient.weight),
+      height: parseFloat(patient.height),
+      bloodPressure: patient.blood_pressure,
+      temperature: patient.temperature ? parseFloat(patient.temperature) : null,
+      hemoglobin: patient.hemoglobin ? parseFloat(patient.hemoglobin) : null,
+      nutritionStatus: patient.nutrition_status,
+      medicalHistory: patient.medical_history ? JSON.parse(patient.medical_history) : [],
+      symptoms: patient.symptoms ? JSON.parse(patient.symptoms) : [],
+      documents: patient.documents ? JSON.parse(patient.documents) : [],
+      photos: patient.photos ? JSON.parse(patient.photos) : [],
       remarks: patient.remarks,
-      risk_score: patient.risk_score,
-      nutritional_deficiency: patient.nutritional_deficiency,
-      bed_id: patient.bed_id,
-      last_visit_date: patient.last_visit_date,
-      next_visit_date: patient.next_visit_date,
-      registered_by: patient.registered_by,
-      registration_date: patient.registration_date,
-      is_active: patient.is_active
+      riskScore: patient.risk_score,
+      nutritionalDeficiency: patient.nutritional_deficiency ? JSON.parse(patient.nutritional_deficiency) : [],
+      bedId: patient.bed_id,
+      lastVisitDate: patient.last_visit_date,
+      nextVisitDate: patient.next_visit_date,
+      registeredBy: patient.registered_by,
+      registrationDate: patient.registration_date,
+      admissionDate: patient.registration_date,
+      nextVisit: patient.next_visit_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     }));
     
-    console.log(`✅ Successfully retrieved ${patients.length} patients from MongoDB`);
+    console.log(`✅ Successfully retrieved ${transformedPatients.length} patients from MySQL`);
     res.json(transformedPatients);
   } catch (err) {
-    console.error('❌ Error fetching patients:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get patient by ID
-router.get('/:id', async (req, res) => {
-  try {
-    console.log(`📊 Fetching patient ${req.params.id} from MongoDB...`);
-    
-    const patient = await Patient.findById(req.params.id)
-      .populate('bed_id');
-    
-    if (!patient || !patient.is_active) {
-      return res.status(404).json({ error: 'Patient not found' });
-    }
-    
-    console.log(`✅ Successfully retrieved patient ${req.params.id} from MongoDB`);
-    res.json(patient);
-  } catch (err) {
-    console.error('❌ Error fetching patient:', err);
+    console.error('❌ Error fetching patients from MySQL:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -94,63 +77,88 @@ router.post('/', [
   try {
     console.log('📝 Received patient data from frontend:', JSON.stringify(req.body, null, 2));
     
+    const patientId = `PAT-${Date.now()}`;
+    const registrationNumber = `NRC${Date.now()}`;
+    
+    // Transform frontend data to MySQL format
     const patientData = {
-      registration_number: `NRC${Date.now()}`,
-      aadhaar_number: req.body.aadhaarNumber,
+      id: patientId,
+      registration_number: registrationNumber,
+      aadhaar_number: req.body.aadhaarNumber || null,
       name: req.body.name,
       age: req.body.age,
       type: req.body.type,
-      pregnancy_week: req.body.pregnancyWeek,
+      pregnancy_week: req.body.pregnancyWeek || null,
       contact_number: req.body.contactNumber,
       emergency_contact: req.body.emergencyContact || req.body.contactNumber,
       address: req.body.address,
       weight: req.body.weight,
       height: req.body.height,
-      blood_pressure: req.body.bloodPressure,
-      temperature: req.body.temperature,
-      hemoglobin: req.body.hemoglobin,
+      blood_pressure: req.body.bloodPressure || null,
+      temperature: req.body.temperature || null,
+      hemoglobin: req.body.hemoglobin || null,
       nutrition_status: req.body.nutritionStatus,
-      medical_history: req.body.medicalHistory || [],
-      symptoms: req.body.symptoms || [],
-      documents: req.body.documents || [],
-      photos: req.body.photos || [],
-      remarks: req.body.remarks,
+      medical_history: JSON.stringify(req.body.medicalHistory || []),
+      symptoms: JSON.stringify(req.body.symptoms || []),
+      documents: JSON.stringify(req.body.documents || []),
+      photos: JSON.stringify(req.body.photos || []),
+      remarks: req.body.remarks || null,
       risk_score: req.body.riskScore || 0,
-      nutritional_deficiency: req.body.nutritionalDeficiency || [],
-      registered_by: req.body.registeredBy
+      nutritional_deficiency: JSON.stringify(req.body.nutritionalDeficiency || []),
+      registered_by: req.body.registeredBy || 'SYSTEM'
     };
 
-    console.log('🔄 Processing patient data for MongoDB storage:', JSON.stringify(patientData, null, 2));
+    console.log('🔄 Processing patient data for MySQL storage:', JSON.stringify(patientData, null, 2));
 
-    const newPatient = new Patient(patientData);
-    const savedPatient = await newPatient.save();
+    // Insert into MySQL database
+    await pool.execute(`
+      INSERT INTO patients (
+        id, registration_number, aadhaar_number, name, age, type, pregnancy_week,
+        contact_number, emergency_contact, address, weight, height, blood_pressure,
+        temperature, hemoglobin, nutrition_status, medical_history, symptoms,
+        documents, photos, remarks, risk_score, nutritional_deficiency, registered_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      patientData.id, patientData.registration_number, patientData.aadhaar_number,
+      patientData.name, patientData.age, patientData.type, patientData.pregnancy_week,
+      patientData.contact_number, patientData.emergency_contact, patientData.address,
+      patientData.weight, patientData.height, patientData.blood_pressure,
+      patientData.temperature, patientData.hemoglobin, patientData.nutrition_status,
+      patientData.medical_history, patientData.symptoms, patientData.documents,
+      patientData.photos, patientData.remarks, patientData.risk_score,
+      patientData.nutritional_deficiency, patientData.registered_by
+    ]);
     
-    console.log('✅ Patient successfully saved to MongoDB with ID:', savedPatient._id);
+    console.log('✅ Patient successfully saved to MySQL database with ID:', patientId);
 
     // Create notification for high-risk patients
-    if ((patientData.risk_score && patientData.risk_score > 80) || patientData.nutrition_status === 'severely_malnourished') {
+    if (patientData.risk_score > 80 || patientData.nutrition_status === 'severely_malnourished') {
       console.log('🚨 Creating high-risk patient notification...');
       
-      const notification = new Notification({
-        user_role: 'supervisor',
-        type: 'high_risk_alert',
-        title: 'High Risk Patient Registered',
-        message: `New high-risk patient ${patientData.name} has been registered with ${patientData.nutrition_status} status.`,
-        priority: 'high',
-        action_required: true
-      });
+      const notificationId = `NOT-${Date.now()}`;
+      await pool.execute(`
+        INSERT INTO notifications (id, user_role, type, title, message, priority, action_required)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [
+        notificationId,
+        'supervisor',
+        'high_risk_alert',
+        'High Risk Patient Registered',
+        `New high-risk patient ${patientData.name} has been registered with ${patientData.nutrition_status} status.`,
+        'high',
+        true
+      ]);
       
-      await notification.save();
-      console.log('✅ High-risk notification created');
+      console.log('✅ High-risk notification created in MySQL');
     }
 
     res.status(201).json({ 
       message: 'Patient created successfully', 
-      id: savedPatient._id,
-      patient: savedPatient
+      id: patientId,
+      registrationNumber: registrationNumber
     });
   } catch (err) {
-    console.error('❌ Error creating patient:', err);
+    console.error('❌ Error creating patient in MySQL:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -158,66 +166,39 @@ router.post('/', [
 // Update patient
 router.put('/:id', async (req, res) => {
   try {
-    console.log(`📝 Updating patient ${req.params.id} with data:`, JSON.stringify(req.body, null, 2));
+    console.log(`📝 Updating patient ${req.params.id} in MySQL with data:`, JSON.stringify(req.body, null, 2));
     
-    const updates = { ...req.body };
+    const updates = req.body;
     
-    // Convert frontend field names to database field names
-    if (updates.medicalHistory) {
-      updates.medical_history = updates.medicalHistory;
-      delete updates.medicalHistory;
-    }
-    if (updates.nutritionalDeficiency) {
-      updates.nutritional_deficiency = updates.nutritionalDeficiency;
-      delete updates.nutritionalDeficiency;
-    }
-    if (updates.contactNumber) {
-      updates.contact_number = updates.contactNumber;
-      delete updates.contactNumber;
-    }
-    if (updates.nutritionStatus) {
-      updates.nutrition_status = updates.nutritionStatus;
-      delete updates.nutritionStatus;
-    }
+    // Build dynamic update query
+    const updateFields = [];
+    const updateValues = [];
+    
+    if (updates.name) { updateFields.push('name = ?'); updateValues.push(updates.name); }
+    if (updates.age) { updateFields.push('age = ?'); updateValues.push(updates.age); }
+    if (updates.contactNumber) { updateFields.push('contact_number = ?'); updateValues.push(updates.contactNumber); }
+    if (updates.address) { updateFields.push('address = ?'); updateValues.push(updates.address); }
+    if (updates.weight) { updateFields.push('weight = ?'); updateValues.push(updates.weight); }
+    if (updates.height) { updateFields.push('height = ?'); updateValues.push(updates.height); }
+    if (updates.nutritionStatus) { updateFields.push('nutrition_status = ?'); updateValues.push(updates.nutritionStatus); }
+    if (updates.medicalHistory) { updateFields.push('medical_history = ?'); updateValues.push(JSON.stringify(updates.medicalHistory)); }
+    
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    updateValues.push(req.params.id);
 
-    console.log('💾 Executing MongoDB update...');
-    const updatedPatient = await Patient.findByIdAndUpdate(
-      req.params.id,
-      { $set: updates },
-      { new: true, runValidators: true }
-    );
+    console.log('💾 Executing MySQL update...');
+    const [result] = await pool.execute(`
+      UPDATE patients SET ${updateFields.join(', ')} WHERE id = ?
+    `, updateValues);
     
-    if (!updatedPatient) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Patient not found' });
     }
     
-    console.log('✅ Patient successfully updated in MongoDB');
-    res.json({ message: 'Patient updated successfully', patient: updatedPatient });
+    console.log('✅ Patient successfully updated in MySQL database');
+    res.json({ message: 'Patient updated successfully' });
   } catch (err) {
-    console.error('❌ Error updating patient:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Delete patient (soft delete)
-router.delete('/:id', async (req, res) => {
-  try {
-    console.log(`🗑️ Soft deleting patient ${req.params.id}...`);
-    
-    const updatedPatient = await Patient.findByIdAndUpdate(
-      req.params.id,
-      { $set: { is_active: false } },
-      { new: true }
-    );
-    
-    if (!updatedPatient) {
-      return res.status(404).json({ error: 'Patient not found' });
-    }
-    
-    console.log('✅ Patient successfully deleted from MongoDB');
-    res.json({ message: 'Patient deleted successfully' });
-  } catch (err) {
-    console.error('❌ Error deleting patient:', err);
+    console.error('❌ Error updating patient in MySQL:', err);
     res.status(500).json({ error: err.message });
   }
 });

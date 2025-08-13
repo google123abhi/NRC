@@ -1,22 +1,18 @@
-# NRC Management System - MongoDB Integration
+# NRC Management System - MySQL Integration
 
-## 🗄️ MongoDB Database Integration
+## 🗄️ MySQL Database Integration
 
 ### Current Data Storage
-All data is now stored in **MongoDB** with Node.js backend, which provides:
-- ✅ Persistent data storage
+All data is now stored in **MySQL** with Node.js backend, which provides:
+- ✅ Persistent data storage with ACID compliance
 - ✅ Fast access and real-time updates
 - ✅ Data survives page refresh and server restart
-- ✅ Scalable NoSQL database
+- ✅ Scalable relational database with proper relationships
 
-### MongoDB Database Integration
+## 📊 MySQL Database Schema
 
-Complete MongoDB integration with Mongoose ODM for persistent data storage.
-
-## 📊 MongoDB Collections
-
-### Core Collections
-- **users** - Authentication and user management
+### Core Tables
+- **users** - Authentication and user management with admin panel
 - **anganwadi_centers** - Anganwadi center information
 - **workers** - Worker profiles and assignments
 - **patients** - Patient registration and basic info
@@ -27,55 +23,71 @@ Complete MongoDB integration with Mongoose ODM for persistent data storage.
 - **notifications** - System notifications
 - **hospitals** - Hospital information
 
-### MongoDB Features
-- ✅ **Document-based storage** with flexible schemas
-- ✅ **ObjectId references** for relationships
-- ✅ **Mongoose validation** for data integrity
-- ✅ **JSON native support** for complex data structures
-- ✅ **Audit trails** with created_at/updated_at
+### MySQL Features
+- ✅ **ACID compliance** for data integrity
+- ✅ **Foreign key constraints** for relationships
+- ✅ **JSON field support** for complex data structures
 - ✅ **Indexing** for optimal performance
+- ✅ **Audit trails** with created_at/updated_at
+- ✅ **Admin panel** for user management
 
 ## 🔧 Setup Instructions
 
-### Step 1: Install MongoDB
+### Step 1: Install MySQL
 
 **Windows:**
-```bash
-# Download from: https://www.mongodb.com/try/download/community
-# Run installer and follow setup wizard
-```
+1. Download MySQL Community Server from: https://dev.mysql.com/downloads/mysql/
+2. Run installer and follow setup wizard
+3. Remember the root password you set during installation
 
 **macOS:**
 ```bash
-brew tap mongodb/brew
-brew install mongodb-community
+brew install mysql
+brew services start mysql
 ```
 
-**Linux:**
+**Linux (Ubuntu):**
 ```bash
-sudo apt-get update
-sudo apt-get install -y mongodb
+sudo apt update
+sudo apt install mysql-server
+sudo systemctl start mysql
+sudo systemctl enable mysql
 ```
 
-### Step 2: Start MongoDB Service
+### Step 2: Create Database and Schema
 
-**Windows:**
+**Option 1: Using MySQL Command Line**
 ```bash
-net start MongoDB
+# Connect to MySQL
+mysql -u root -p
+
+# Create database
+CREATE DATABASE nrc_management;
+
+# Exit MySQL shell
+exit
+
+# Import schema
+mysql -u root -p nrc_management < server/database/mysql-schema.sql
 ```
 
-**macOS:**
+**Option 2: Using MySQL Workbench**
+1. Open MySQL Workbench
+2. Connect to your local MySQL server
+3. Create new schema: `nrc_management`
+4. Open and execute: `server/database/mysql-schema.sql`
+
+### Step 3: Configure Environment
 ```bash
-brew services start mongodb/brew/mongodb-community
+# Update server/.env file with your MySQL credentials
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=nrc_management
 ```
 
-**Linux:**
-```bash
-sudo systemctl start mongod
-sudo systemctl enable mongod
-```
-
-### Step 3: Install Dependencies & Start Server
+### Step 4: Install Dependencies & Start Server
 ```bash
 # Navigate to server directory
 cd server
@@ -87,28 +99,17 @@ npm install
 npm run dev
 ```
 
-### Step 4: Start Frontend
+### Step 5: Start Frontend
 ```bash
 # In project root directory
 npm install
 npm run dev
 ```
 
-## 🚀 Environment Configuration
-
-### Server Environment (.env)
-```bash
-PORT=3001
-NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/nrc_management
-JWT_SECRET=your-super-secret-jwt-key
-FRONTEND_URL=http://localhost:5173
-```
-
 ## 🔄 Data Flow
 
 ```
-Frontend Form → Node.js API → MongoDB → Persistent Storage
+Frontend Form → Node.js API → MySQL Database → Persistent Storage
 ```
 
 ### API Endpoints
@@ -121,147 +122,60 @@ GET/POST /api/notifications
 GET/POST /api/visits
 GET/POST /api/bed-requests
 GET/POST /api/medical-records
+GET/POST /api/auth/users (Admin only)
+```
+
+## 👑 Admin Panel Features
+
+### User Management
+- ✅ **Create new users** with role assignment
+- ✅ **Edit user details** and permissions
+- ✅ **Deactivate users** (soft delete)
+- ✅ **Password management** with bcrypt hashing
+- ✅ **Role-based access control**
+
+### Default Admin Credentials
+```
+Employee ID: ADMIN001
+Username: admin
+Password: admin123
+```
+
+### Default User Credentials
+```
+Anganwadi Worker: EMP001 / priya.sharma / worker123
+Supervisor: SUP001 / supervisor1 / super123
+Hospital Staff: HOSP001 / hospital1 / hosp123
 ```
 
 ## 🎯 Key Features
 
-- ✅ **No data loss** - Everything persists in MongoDB
+- ✅ **No data loss** - Everything persists in MySQL
 - ✅ **Real-time updates** - Data syncs across sessions
-- ✅ **Proper relationships** - ObjectId references
-- ✅ **Schema validation** - Mongoose ensures data integrity
+- ✅ **Proper relationships** - Foreign key constraints
+- ✅ **Admin panel** - Complete user management
 - ✅ **Sample data included** - Ready for immediate testing
 - ✅ **Error handling** - Comprehensive error management
 
 ## 🔍 Troubleshooting
 
 ### "Failed to fetch" Error
-1. Ensure MongoDB is running
-2. Check server is started (`npm run dev` in server directory)
-3. Verify CORS settings in server.js
+1. Ensure MySQL is running: `sudo systemctl status mysql`
+2. Check server is started: `npm run dev` in server directory
+3. Verify database credentials in server/.env
 4. Check network connectivity
 
-### MongoDB Connection Issues
-1. Verify MongoDB service is running
-2. Check MONGODB_URI in .env file
-3. Ensure database permissions
+### MySQL Connection Issues
+1. Verify MySQL service is running
+2. Check DB credentials in .env file
+3. Ensure database `nrc_management` exists
 4. Check firewall settings
+5. Verify MySQL is listening on port 3306
 
-Your data will now **permanently persist** in MongoDB and never vanish on refresh or restart!
-```
-```
+### Admin Panel Access
+1. Login with admin credentials: ADMIN001 / admin / admin123
+2. Admin panel automatically loads for admin users
+3. Create new users and distribute credentials
+4. Manage user roles and permissions
 
-### 3. Update AppContext
-Replace the current in-memory storage with database calls:
-
-```typescript
-// Example: Replace mock data with database calls
-const { patients, createPatient } = usePatients();
-const { beds, updateBed } = useBeds();
-const { notifications, createNotification } = useNotifications();
-```
-
-### 4. Database Service Usage
-```typescript
-import { useDatabase, usePatients } from './hooks/useDatabase';
-
-function PatientComponent() {
-  const { patients, createPatient, loading } = usePatients();
-  
-  const handleAddPatient = async (patientData) => {
-    try {
-      await createPatient(patientData);
-      // Patient list automatically refreshes
-    } catch (error) {
-      console.error('Failed to add patient:', error);
-    }
-  };
-
-  if (loading) return <div>Loading...</div>;
-  
-  return (
-    <div>
-      {patients.map(patient => (
-        <div key={patient.id}>{patient.name}</div>
-      ))}
-    </div>
-  );
-}
-```
-
-## 📈 Migration Strategy
-
-### Phase 1: Database Setup
-1. Create database and run schema
-2. Insert sample data
-3. Test connections
-
-### Phase 2: Gradual Migration
-1. Start with patient data
-2. Add medical records
-3. Integrate bed management
-4. Add notifications
-
-### Phase 3: Full Integration
-1. Replace all context data with database calls
-2. Add real-time updates
-3. Implement caching strategies
-4. Add backup procedures
-
-## 🔒 Security Features
-
-- **Password hashing** with bcrypt
-- **SQL injection protection** with parameterized queries
-- **Role-based access control** at database level
-- **Audit logging** for all operations
-- **Data encryption** for sensitive fields
-
-## 📊 Performance Optimizations
-
-- **Database indexes** on frequently queried fields
-- **Connection pooling** for efficient resource usage
-- **Query optimization** with proper joins
-- **Caching strategies** for frequently accessed data
-- **Pagination** for large datasets
-
-## 🔄 Real-time Updates
-
-For real-time functionality, consider:
-- **WebSocket connections** for live updates
-- **Database triggers** for automatic notifications
-- **Event-driven architecture** for system integration
-- **Redis** for caching and pub/sub
-
-## 📱 API Integration
-
-The database services can be easily extended to work with REST APIs:
-
-```typescript
-// API service layer
-class ApiService {
-  async getPatients() {
-    const response = await fetch('/api/patients');
-    return response.json();
-  }
-  
-  async createPatient(data) {
-    const response = await fetch('/api/patients', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return response.json();
-  }
-}
-```
-
-## 🎯 Next Steps
-
-1. **Choose your database** (PostgreSQL recommended)
-2. **Set up the schema** using the provided SQL file
-3. **Install database dependencies**
-4. **Configure environment variables**
-5. **Replace context calls** with database hooks
-6. **Test the integration**
-7. **Deploy with persistent storage**
-
-The system is designed to be database-agnostic, so you can easily switch between different database systems based on your requirements.
+Your data will now **permanently persist** in MySQL and never vanish on refresh or restart!

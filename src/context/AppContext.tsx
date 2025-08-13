@@ -337,7 +337,7 @@ interface AppContextType {
   
   // User management
   currentUser: any;
-  userRole: 'anganwadi_worker' | 'supervisor' | 'hospital' | null;
+  userRole: 'anganwadi_worker' | 'supervisor' | 'hospital' | 'admin' | null;
   language: 'en' | 'hi';
   
   // Actions
@@ -366,7 +366,7 @@ interface AppContextType {
   addAIPrediction: (prediction: Omit<HealthPrediction, 'id'>) => void;
   
   // User actions
-  setCurrentUser: (user: any, role: 'anganwadi_worker' | 'supervisor' | 'hospital') => void;
+  setCurrentUser: (user: any, role: 'anganwadi_worker' | 'supervisor' | 'hospital' | 'admin') => void;
   logout: () => void;
   setLanguage: (lang: 'en' | 'hi') => void;
   hasAccess: (feature: string) => boolean;
@@ -570,7 +570,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   
   // User state
   const [currentUser, setCurrentUserState] = useState<any>(null);
-  const [userRole, setUserRole] = useState<'anganwadi_worker' | 'supervisor' | 'hospital' | null>(null);
+  const [userRole, setUserRole] = useState<'anganwadi_worker' | 'supervisor' | 'hospital' | 'admin' | null>(null);
   const [language, setLanguage] = useState<'en' | 'hi'>('en');
 
   // API Base URL
@@ -1427,7 +1427,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // User management
-  const setCurrentUser = (user: any, role: 'anganwadi_worker' | 'supervisor' | 'hospital') => {
+  const setCurrentUser = (user: any, role: 'anganwadi_worker' | 'supervisor' | 'hospital' | 'admin') => {
     setCurrentUserState(user);
     setUserRole(role);
   };
@@ -1442,6 +1442,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!userRole) return false;
 
     const permissions = {
+      admin: ['dashboard', 'userManagement', 'systemConfig'],
       anganwadi_worker: [
         'dashboard', 'patientRegistration', 'medicalRecords', 'visitScheduling',
         'bedAvailability', 'notifications', 'aiPrediction', 'postHospitalization'

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Users, Guitar as Hospital, UserCheck, LogOut, Globe, Clock, User, FileText, Calendar, Bed, Brain, Bell, MapPin, Activity, BarChart3, Ticket, Shield, Stethoscope, ClipboardList, TrendingUp } from 'lucide-react';
+import { Users, Guitar as Hospital, UserCheck, LogOut, Globe, Clock, User, FileText, Calendar, Bed, Brain, Bell, MapPin, Activity, BarChart3, Ticket, Shield, Stethoscope, ClipboardList, TrendingUp, Settings } from 'lucide-react';
 import Login from './components/Login';
+import AdminPanel from './components/AdminPanel';
 import Dashboard from './components/Dashboard';
 import PatientRegistration from './components/PatientRegistration';
 import BedAvailability from './components/BedAvailability';
@@ -28,6 +29,11 @@ import { AppProvider, useApp } from './context/AppContext';
 function AppContent() {
   const { language, setLanguage, currentUser, userRole, setCurrentUser, logout, hasAccess, t } = useApp();
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Show admin panel for admin users
+  if (userRole === 'admin') {
+    return <AdminPanel />;
+  }
 
   // Show login if no user is logged in
   if (!currentUser || !userRole) {

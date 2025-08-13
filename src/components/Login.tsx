@@ -3,12 +3,12 @@ import { Users, Guitar as Hospital, UserCheck, Eye, EyeOff, LogIn, Shield } from
 import { useApp } from '../context/AppContext';
 
 interface LoginProps {
-  onLogin: (role: 'anganwadi_worker' | 'supervisor' | 'hospital', userData: any) => void;
+  onLogin: (role: 'anganwadi_worker' | 'supervisor' | 'hospital' | 'admin', userData: any) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const { t } = useApp();
-  const [selectedRole, setSelectedRole] = useState<'anganwadi_worker' | 'supervisor' | 'hospital'>('anganwadi_worker');
+  const [selectedRole, setSelectedRole] = useState<'anganwadi_worker' | 'supervisor' | 'hospital' | 'admin'>('anganwadi_worker');
   const [credentials, setCredentials] = useState({
     username: '',
     password: '',
@@ -17,94 +17,61 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Mock user data for different roles
-  const mockUsers = {
-    anganwadi_worker: [
-      { 
-        username: 'priya.sharma', 
-        password: 'worker123', 
-        employeeId: 'EMP001', 
-        name: 'Priya Sharma', 
-        role: 'anganwadi_worker',
-        anganwadiId: 'AWC001',
-        assignedAreas: ['Sadar Bazaar', 'Civil Lines']
-      },
-      { 
-        username: 'meera.devi', 
-        password: 'worker123', 
-        employeeId: 'EMP002', 
-        name: 'Meera Devi', 
-        role: 'anganwadi_worker',
-        anganwadiId: 'AWC001',
-        assignedAreas: ['Shastri Nagar']
-      }
-    ],
-    supervisor: [
-      { 
-        username: 'supervisor1', 
-        password: 'super123', 
-        employeeId: 'SUP001', 
-        name: 'Dr. Sunita Devi', 
-        role: 'supervisor',
-        department: 'NRC Management',
-        jurisdiction: 'Meerut Block'
-      },
-      { 
-        username: 'supervisor2', 
-        password: 'super123', 
-        employeeId: 'SUP002', 
-        name: 'Dr. Rajesh Kumar', 
-        role: 'supervisor',
-        department: 'Community Health',
-        jurisdiction: 'Meerut District'
-      }
-    ],
-    hospital: [
-      { 
-        username: 'hospital1', 
-        password: 'hosp123', 
-        employeeId: 'HOSP001', 
-        name: 'Dr. Amit Sharma', 
-        role: 'hospital',
-        department: 'Pediatrics',
-        hospitalId: 'HOSP001'
-      },
-      { 
-        username: 'hospital2', 
-        password: 'hosp123', 
-        employeeId: 'HOSP002', 
-        name: 'Dr. Kavita Singh', 
-        role: 'hospital',
-        department: 'Gynecology',
-        hospitalId: 'HOSP001'
-      }
-    ]
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      console.log('🔐 Attempting login with MySQL database...');
+      
+      const response = await fetch('http://localhost:3001/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: credentials.username,
+          password: credentials.password,
+          employee_id: credentials.employeeId
+        }),
+      });
 
-    const users = mockUsers[selectedRole];
-    const user = users.find(u => 
-      u.username === credentials.username && 
-      u.password === credentials.password &&
-      u.employeeId === credentials.employeeId
-    );
-
-    if (user) {
-      onLogin(selectedRole, user);
-    } else {
-      alert('Invalid credentials. Please try again.');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Login successful:', data.user.name);
+        onLogin(data.user.role, data.user);
+      } else {
+        const errorData = await response.json();
+        console.log('❌ Login failed:', errorData.error);
+        alert(errorData.error || 'Invalid credentials. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      alert('Connection error. Please check if the server is running.');
     }
 
     setIsLoading(false);
   };
 
   const roleConfigs = {
+    admin: {
+      title: 'Administrator Login',
+      subtitle: 'System administrator with full access to user management',
+      icon: Shield,
+      color: 'bg-purple-600',
+      hoverColor: 'hover:bg-purple-700',
+      bgColor: 'bg-purple-50',
+      borderColor: 'border-purple-200',
+      textColor: 'text-purple-800',
+      features: [
+        'User Management & Credentials',
+        'System Configuration',
+        'Access Control Management',
+        'Database Administration',
+        'Security & Audit Logs',
+        'System Monitoring'
+      ]
+    },
     anganwadi_worker: {
       title: 'Anganwadi Worker Login',
       subtitle: 'Ground-level health worker for SAM children & pregnant women identification',
@@ -314,30 +281,28 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 {selectedRole === 'anganwadi_worker' && (
                   <>
                     <div className="bg-white p-2 rounded border">
-                      <strong>Worker 1:</strong> EMP001 / priya.sharma / worker123
+                      <strong>Worker:</strong> EMP001 / priya.sharma / worker123
                     </div>
+                  </>
+                )}
+                {selectedRole === 'admin' && (
+                  <>
                     <div className="bg-white p-2 rounded border">
-                      <strong>Worker 2:</strong> EMP002 / meera.devi / worker123
+                      <strong>Admin:</strong> ADMIN001 / admin / admin123
                     </div>
                   </>
                 )}
                 {selectedRole === 'supervisor' && (
                   <>
                     <div className="bg-white p-2 rounded border">
-                      <strong>Supervisor 1:</strong> SUP001 / supervisor1 / super123
-                    </div>
-                    <div className="bg-white p-2 rounded border">
-                      <strong>Supervisor 2:</strong> SUP002 / supervisor2 / super123
+                      <strong>Supervisor:</strong> SUP001 / supervisor1 / super123
                     </div>
                   </>
                 )}
                 {selectedRole === 'hospital' && (
                   <>
                     <div className="bg-white p-2 rounded border">
-                      <strong>Pediatrics:</strong> HOSP001 / hospital1 / hosp123
-                    </div>
-                    <div className="bg-white p-2 rounded border">
-                      <strong>Gynecology:</strong> HOSP002 / hospital2 / hosp123
+                      <strong>Hospital:</strong> HOSP001 / hospital1 / hosp123
                     </div>
                   </>
                 )}
